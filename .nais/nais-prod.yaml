@@ -17,20 +17,20 @@ spec:
   replicas:
     min: 2
     max: 10
-#    scalingStrategy:
-#      kafka:
-#        topic: team-researchops.analytics-raw
-#        consumerGroup: reops-scrubs
-#        threshold: 100
+    scalingStrategy:
+      kafka:
+        topic: team-researchops.analytics-raw
+        consumerGroup: reops-scrubs
+        threshold: 500
   prometheus:
     enabled: true
     path: /internal/prometheus
   resources:
     limits:
-      memory: 256Mi
+      memory: 512Mi
     requests:
       cpu: "400m"
-      memory: 124Mi
+      memory: 256Mi
   kafka:
     pool: nav-prod
   accessPolicy:
