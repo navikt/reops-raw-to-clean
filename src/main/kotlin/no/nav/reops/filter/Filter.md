@@ -35,19 +35,17 @@ Responsibilities are isolated:
 ## Data Flow
 
 1. `FilterService` receives an `Event`
-2. The static **default filter** (`DefaultPolicies.defaultFilter`) determines which
-   keys are excluded from redaction (see [Default Filter](#5-default-filter-excluded-keys) below)
-3. Payload header fields are copied, with redaction applied to every field
-   **not** in the default filter:
-   - `payload.id`, `payload.hostname`, `payload.screen`, `payload.language`,
+2. Payload header fields are copied, with redaction applied to every field:
+   - `payload.hostname`, `payload.screen`, `payload.language`,
      `payload.title`, `payload.url`, `payload.referrer`, `payload.name`
-4. `UrlPolicy` sanitizes URL-like values (path vs query handling)
-5. `Traverser` walks `payload.data` recursively:
+   - `payload.id` has FNR-only redaction (no other rules)
+3. `UrlPolicy` sanitizes URL-like values (path vs query handling)
+4. `Traverser` walks `payload.data` recursively:
    - Applies `KeyPolicy` for structural decisions
    - Uses `UrlPolicy` to detect URL contexts / URL-like keys
    - Uses `Redactor` to sanitize string values
-   - Skips keys present in the default filter
-6. The sanitized event is returned
+   - All keys are redacted — there are no exclusions
+5. The sanitized event is returned
 
 All behavior is deterministic and enforced by the test suite.
 
@@ -163,48 +161,6 @@ Notes:
 
 ---
 
-## 5. Default Filter (Excluded Keys)
-
-The default filter is a static set of keys defined in `DefaultPolicies.defaultFilter`.
-Fields whose key appears in this set are **excluded from redaction** — their values are
-passed through unchanged. This applies both to top-level payload fields and to keys
-encountered during recursive traversal of `payload.data`.
-
-The current default filter keys:
-
-| Key                  | Purpose                           |
-|----------------------|-----------------------------------|
-| `komponent`          | Component name                    |
-| `lenketekst`         | Link text                         |
-| `breadcrumbs`        | Navigation breadcrumbs            |
-| `pageType`           | Page classification               |
-| `pageTheme`          | Page theme                        |
-| `employer`           | Employer flag                     |
-| `seksjon`            | Section name                      |
-| `valg`               | User selection                    |
-| `jobTitle`           | Job title                         |
-| `occupationLevel2`   | Occupation category               |
-| `enhet`              | Organizational unit               |
-| `filter`             | Applied filter                    |
-| `organisasjoner`     | Organization count/flag           |
-| `destinasjon`        | Destination identifier            |
-| `location`           | Location identifier               |
-| `arbeidssted`        | Workplace                         |
-| `kilde`              | Source identifier                  |
-| `skjemanavn`         | Form name                         |
-| `lenkegruppe`        | Link group                        |
-| `linkText`           | Link text (English variant)       |
-| `descriptionId`      | Description identifier            |
-| `tema`               | Topic                             |
-| `innholdstype`       | Content type                      |
-| `yrkestittel`        | Job title (Norwegian)             |
-| `tlbhrNavn`          | Navigation element name           |
-
-To add or remove a key from the default filter, edit `DefaultPolicies.defaultFilter`
-in `FilterService.kt`.
-
----
-
 ## How to Extend
 
 | Change you want              | Where to implement              |
@@ -215,7 +171,6 @@ in `FilterService.kt`.
 | Change URL behavior          | `UrlPolicy`                     |
 | Add a new PII regex          | `FilterService.buildRules()`    |
 | Change traversal behavior    | `Traverser`                     |
-| Exclude a key from redaction | `DefaultPolicies.defaultFilter` |
 
 Most changes should touch exactly one file.
 It acts as a deterministic and auditable privacy firewall.

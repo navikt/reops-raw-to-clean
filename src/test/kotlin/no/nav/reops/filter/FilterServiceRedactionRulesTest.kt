@@ -266,7 +266,7 @@ class FilterServiceRedactionRulesTest {
     }
 
     @Test
-    fun `filterEvent should exclude name redaction for selected keys`() {
+    fun `filterEvent redacts name on all data keys with no exclusions`() {
         val service = filterService()
 
         val base = TestEventFactory.minimalEvent()
@@ -276,40 +276,40 @@ class FilterServiceRedactionRulesTest {
                 data = TestEventFactory.jsonNode(
                     mapOf(
                         "sidetittel" to "Ola Nordmann",
-                        "komponent" to "Ola Nordmann", // exclude
+                        "komponent" to "Ola Nordmann",
                         "title" to "Ola Nordmann",
                         "text" to "Ola Nordmann",
                         "tekst" to "Ola Nordmann",
-                        "lenketekst" to "Ola Nordmann", // exclude
+                        "lenketekst" to "Ola Nordmann",
                         "parametre" to mapOf(
-                            "breadcrumbs" to "Ola Nordmann", // exclude
-                            "pageType" to "Ola Nordmann", // exclude
-                            "pageTheme" to "Ola Nordmann" // exclude
+                            "breadcrumbs" to "Ola Nordmann",
+                            "pageType" to "Ola Nordmann",
+                            "pageTheme" to "Ola Nordmann"
                         ),
-                        "employer" to "Ola Nordmann", // exclude
-                        "seksjon" to "Ola Nordmann", // exclude
+                        "employer" to "Ola Nordmann",
+                        "seksjon" to "Ola Nordmann",
                         "tittel" to "Ola Nordmann",
-                        "valg" to "Ola Nordmann", // exclude
-                        "jobTitle" to "Ola Nordmann", // exclude
+                        "valg" to "Ola Nordmann",
+                        "jobTitle" to "Ola Nordmann",
                         "searchParams" to mapOf(
                             "q" to "Ola Nordmann",
-                            "occupationLevel2" to "Ola Nordmann" // exclude
+                            "occupationLevel2" to "Ola Nordmann"
                         ),
-                        "enhet" to "Ola Nordmann", // exclude
-                        "filter" to "Ola Nordmann", // exclude
-                        "organisasjoner" to "Ola Nordmann", // exclude
-                        "destinasjon" to "Ola Nordmann", // exclude
-                        "location" to "Ola Nordmann", // exclude
-                        "arbeidssted" to "Ola Nordmann", // exclude
-                        "kilde" to "Ola Nordmann", // exclude
-                        "skjemanavn" to "Ola Nordmann", // exclude
-                        "lenkegruppe" to "Ola Nordmann", // exclude
-                        "linkText" to "Ola Nordmann", // exclude
-                        "descriptionId" to "Ola Nordmann", // exclude
-                        "tema" to "Ola Nordmann", // exclude
-                        "innholdstype" to "Ola Nordmann", // exclude
-                        "yrkestittel" to "Ola Nordmann", // exclude
-                        "tlbhrNavn" to "Ola Nordmann" // exclude
+                        "enhet" to "Ola Nordmann",
+                        "filter" to "Ola Nordmann",
+                        "organisasjoner" to "Ola Nordmann",
+                        "destinasjon" to "Ola Nordmann",
+                        "location" to "Ola Nordmann",
+                        "arbeidssted" to "Ola Nordmann",
+                        "kilde" to "Ola Nordmann",
+                        "skjemanavn" to "Ola Nordmann",
+                        "lenkegruppe" to "Ola Nordmann",
+                        "linkText" to "Ola Nordmann",
+                        "descriptionId" to "Ola Nordmann",
+                        "tema" to "Ola Nordmann",
+                        "innholdstype" to "Ola Nordmann",
+                        "yrkestittel" to "Ola Nordmann",
+                        "tlbhrNavn" to "Ola Nordmann"
                     )
                 )
             )
@@ -318,40 +318,38 @@ class FilterServiceRedactionRulesTest {
         val out = service.filterEvent(event)
         val data = out.payload.data!!
 
-        // Redacted (not excluded)
+        // All keys are now redacted — no exclusions
         assertEquals("[PROXY-NAME]", data.get("sidetittel").asString())
+        assertEquals("[PROXY-NAME]", data.get("komponent").asString())
         assertEquals("[PROXY-NAME]", data.get("title").asString())
         assertEquals("[PROXY-NAME]", data.get("text").asString())
         assertEquals("[PROXY-NAME]", data.get("tekst").asString())
+        assertEquals("[PROXY-NAME]", data.get("lenketekst").asString())
+        assertEquals("[PROXY-NAME]", data.get("parametre").get("breadcrumbs").asString())
+        assertEquals("[PROXY-NAME]", data.get("parametre").get("pageType").asString())
+        assertEquals("[PROXY-NAME]", data.get("parametre").get("pageTheme").asString())
+        assertEquals("[PROXY-NAME]", data.get("employer").asString())
+        assertEquals("[PROXY-NAME]", data.get("seksjon").asString())
         assertEquals("[PROXY-NAME]", data.get("tittel").asString())
+        assertEquals("[PROXY-NAME]", data.get("valg").asString())
+        assertEquals("[PROXY-NAME]", data.get("jobTitle").asString())
         assertEquals("[PROXY-NAME]", data.get("searchParams").get("q").asString())
-
-        // Preserved (excluded)
-        assertEquals("Ola Nordmann", data.get("komponent").asString())
-        assertEquals("Ola Nordmann", data.get("lenketekst").asString())
-        assertEquals("Ola Nordmann", data.get("parametre").get("breadcrumbs").asString())
-        assertEquals("Ola Nordmann", data.get("parametre").get("pageType").asString())
-        assertEquals("Ola Nordmann", data.get("parametre").get("pageTheme").asString())
-        assertEquals("Ola Nordmann", data.get("employer").asString())
-        assertEquals("Ola Nordmann", data.get("seksjon").asString())
-        assertEquals("Ola Nordmann", data.get("valg").asString())
-        assertEquals("Ola Nordmann", data.get("jobTitle").asString())
-        assertEquals("Ola Nordmann", data.get("searchParams").get("occupationLevel2").asString())
-        assertEquals("Ola Nordmann", data.get("enhet").asString())
-        assertEquals("Ola Nordmann", data.get("filter").asString())
-        assertEquals("Ola Nordmann", data.get("organisasjoner").asString())
-        assertEquals("Ola Nordmann", data.get("destinasjon").asString())
-        assertEquals("Ola Nordmann", data.get("location").asString())
-        assertEquals("Ola Nordmann", data.get("arbeidssted").asString())
-        assertEquals("Ola Nordmann", data.get("kilde").asString())
-        assertEquals("Ola Nordmann", data.get("skjemanavn").asString())
-        assertEquals("Ola Nordmann", data.get("lenkegruppe").asString())
-        assertEquals("Ola Nordmann", data.get("linkText").asString())
-        assertEquals("Ola Nordmann", data.get("descriptionId").asString())
-        assertEquals("Ola Nordmann", data.get("tema").asString())
-        assertEquals("Ola Nordmann", data.get("innholdstype").asString())
-        assertEquals("Ola Nordmann", data.get("yrkestittel").asString())
-        assertEquals("Ola Nordmann", data.get("tlbhrNavn").asString())
+        assertEquals("[PROXY-NAME]", data.get("searchParams").get("occupationLevel2").asString())
+        assertEquals("[PROXY-NAME]", data.get("enhet").asString())
+        assertEquals("[PROXY-NAME]", data.get("filter").asString())
+        assertEquals("[PROXY-NAME]", data.get("organisasjoner").asString())
+        assertEquals("[PROXY-NAME]", data.get("destinasjon").asString())
+        assertEquals("[PROXY-NAME]", data.get("location").asString())
+        assertEquals("[PROXY-NAME]", data.get("arbeidssted").asString())
+        assertEquals("[PROXY-NAME]", data.get("kilde").asString())
+        assertEquals("[PROXY-NAME]", data.get("skjemanavn").asString())
+        assertEquals("[PROXY-NAME]", data.get("lenkegruppe").asString())
+        assertEquals("[PROXY-NAME]", data.get("linkText").asString())
+        assertEquals("[PROXY-NAME]", data.get("descriptionId").asString())
+        assertEquals("[PROXY-NAME]", data.get("tema").asString())
+        assertEquals("[PROXY-NAME]", data.get("innholdstype").asString())
+        assertEquals("[PROXY-NAME]", data.get("yrkestittel").asString())
+        assertEquals("[PROXY-NAME]", data.get("tlbhrNavn").asString())
     }
 
     @Test
@@ -388,7 +386,7 @@ class FilterServiceRedactionRulesTest {
         assertEquals(websiteId, out.payload.website)
 
         // all other top-level string fields have the uuid redacted
-        assertEquals(uuid, out.payload.id)  // id is preserved as-is (not redacted)
+        assertEquals(uuid, out.payload.id)  // id only checks for FNR, not UUID
         assertEquals("[PROXY-UUID]", out.payload.hostname)
         assertEquals("[PROXY-UUID]", out.payload.screen)
         assertEquals("[PROXY-UUID]", out.payload.language)

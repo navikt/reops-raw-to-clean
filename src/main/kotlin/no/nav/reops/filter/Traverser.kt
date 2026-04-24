@@ -8,8 +8,7 @@ import tools.jackson.databind.node.ObjectNode
 internal class Traverser(
     private val keyPolicy: KeyPolicy,
     private val urlPolicy: UrlPolicy,
-    private val redactor: Redactor,
-    private val excludeKeys: Set<String>
+    private val redactor: Redactor
 ) {
     fun transform(root: JsonNode): JsonNode =
         transformNode(root, NodeContext(depth = 0, containerKey = null, key = null))
@@ -17,10 +16,20 @@ internal class Traverser(
     private fun transformNode(node: JsonNode, ctx: NodeContext): JsonNode = when {
         node.isNull -> node
         node.isString -> JsonNodeFactory.instance.stringNode(transformString(node.asString(), ctx))
-        node.isNumber || node.isBoolean -> node
+        node.isNumber -> redactIfFnrNumber(node)
+        node.isBoolean -> node
         node.isObject -> transformObject(node as ObjectNode, ctx)
         node.isArray -> transformArray(node as ArrayNode, ctx)
         else -> node
+    }
+
+    private fun redactIfFnrNumber(node: JsonNode): JsonNode {
+        val longVal = node.asLong()
+        return if (longVal in 10_000_000_000..99_999_999_999) {
+            JsonNodeFactory.instance.stringNode("[PROXY-FNR]")
+        } else {
+            node
+        }
     }
 
     private fun transformString(raw: String, ctx: NodeContext): String {
@@ -37,11 +46,6 @@ internal class Traverser(
         val out = JsonNodeFactory.instance.objectNode()
 
         for ((key, value) in obj.properties()) {
-            if (key in excludeKeys) {
-                out.set(key, value)
-                continue
-            }
-
             when (val decision = keyPolicy.decide(key, value)) {
                 is KeyPolicy.Decision.Drop -> {
                     // ignore

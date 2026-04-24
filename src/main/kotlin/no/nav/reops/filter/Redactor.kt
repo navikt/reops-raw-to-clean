@@ -13,7 +13,9 @@ internal class Redactor(
         // 1) Optionally preserve URL-like substrings in free-text
         val preservedUrls = PlaceholderStore(prefix = "__PRESERVED_URL_", suffix = "__")
         if (preserveUrls) {
-            result = preservedUrls.preserveAll(result, FilterPatterns.URL_REGEX)
+            result = preservedUrls.preserveAll(result, FilterPatterns.URL_REGEX) { url ->
+                FilterPatterns.FNR_REGEX.replace(url) { "[PROXY-FNR]" }
+            }
         }
 
         // 2) Apply rules (same order, same checks)
@@ -40,10 +42,11 @@ internal class Redactor(
     ) {
         private val values = mutableListOf<String>()
 
-        fun preserveAll(input: String, regex: Regex): String {
+        fun preserveAll(input: String, regex: Regex, preprocess: ((String) -> String)? = null): String {
             var out = input
             regex.findAll(out).forEachIndexed { i, match ->
-                values.add(match.value)
+                val value = preprocess?.invoke(match.value) ?: match.value
+                values.add(value)
                 out = out.replace(match.value, placeholder(i))
             }
             return out

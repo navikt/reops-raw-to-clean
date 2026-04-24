@@ -88,5 +88,67 @@ class FilterServiceFnrVariantsTest {
         val input = "AD748BD6-484B-416C-B444-a12345678901"
         assertEquals("[PROXY-UUID]", redact(input))
     }
-}
 
+    @Test
+    fun `redacts fnr inside url in free text`() {
+        val input = "See https://nav.no/person/12345678901/details for info"
+        assertEquals("See https://nav.no/person/[PROXY-FNR]/details for info", redact(input))
+    }
+
+    @Test
+    fun `redacts fnr inside domain path url in free text`() {
+        val input = "Link: example.com/user/12345678901/profile"
+        assertEquals("Link: example.com/user/[PROXY-FNR]/profile", redact(input))
+    }
+
+    @Test
+    fun `redacts numeric fnr value in json data`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val event = base.copy(
+            type = "event", payload = base.payload.copy(
+                data = TestEventFactory.jsonNode(mapOf("kandidatnr" to 12345678901L))
+            )
+        )
+        val out = service.filterEvent(event)
+        assertEquals("[PROXY-FNR]", out.payload.data!!.get("kandidatnr").asString())
+    }
+
+    @Test
+    fun `preserves non-fnr numeric values`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val event = base.copy(
+            type = "event", payload = base.payload.copy(
+                data = TestEventFactory.jsonNode(mapOf("count" to 42, "big" to 123456789012L))
+            )
+        )
+        val out = service.filterEvent(event)
+        assertEquals(42, out.payload.data!!.get("count").asInt())
+        // 12-digit number should not be redacted
+        assertEquals(123456789012L, out.payload.data.get("big").asLong())
+    }
+
+    @Test
+    fun `redacts fnr in payload id field but preserves other content`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val event = base.copy(
+            type = "event", payload = base.payload.copy(id = "user-12345678901-session")
+        )
+        val out = service.filterEvent(event)
+        assertEquals("user-[PROXY-FNR]-session", out.payload.id)
+    }
+
+    @Test
+    fun `preserves uuid in payload id field`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val uuid = "550e8400-e29b-41d4-a716-446655440000"
+        val event = base.copy(
+            type = "event", payload = base.payload.copy(id = uuid)
+        )
+        val out = service.filterEvent(event)
+        assertEquals(uuid, out.payload.id)
+    }
+}
