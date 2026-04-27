@@ -3,6 +3,8 @@ spring:
     bootstrap-servers: ${KAFKA_BROKERS}
     topic: team-researchops.analytics-raw
     output-topic: team-researchops.analytics-clean
+    listener:
+      auth-exception-retry-interval: 10s
     properties:
       security.protocol: SSL
       ssl.endpoint.identification.algorithm: ""
