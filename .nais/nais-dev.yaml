@@ -1,7 +1,7 @@
 apiVersion: nais.io/v1alpha1
 kind: Application
 metadata:
-  name: reops-scrubs
+  name: reops-raw-to-clean
   namespace: team-researchops
   labels:
     team: team-researchops
@@ -20,7 +20,7 @@ spec:
     scalingStrategy:
       kafka:
         topic: team-researchops.analytics-raw
-        consumerGroup: reops-scrubs
+        consumerGroup: reops-raw-to-clean
         threshold: 100
   prometheus:
     enabled: true

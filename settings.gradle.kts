@@ -1,1 +1,1 @@
-rootProject.name = "reops-scrubs"
+rootProject.name = "reops-raw-to-clean"

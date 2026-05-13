@@ -1,6 +1,6 @@
 spring:
   application:
-    name: reops-scrubs-test
+    name: reops-raw-to-clean-test
   kafka:
     topic: test-topic
     output-topic: test-output-topic

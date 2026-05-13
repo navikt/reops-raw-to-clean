@@ -1,6 +1,6 @@
 spring:
   application:
-    name: reops-scrubs
+    name: reops-raw-to-clean
   kafka:
     bootstrap-servers: localhost:9094
     listener:
@@ -10,7 +10,7 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
     consumer:
-      group-id: reops-scrubs
+      group-id: reops-raw-to-clean
       auto-offset-reset: earliest
       enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
