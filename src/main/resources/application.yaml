@@ -5,7 +5,7 @@ spring:
     bootstrap-servers: localhost:9094
     listener:
       ack-mode: record
-      concurrency: 10
+      concurrency: 6
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
