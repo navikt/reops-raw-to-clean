@@ -21,12 +21,14 @@ import org.springframework.kafka.test.context.EmbeddedKafka
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.messaging.support.MessageBuilder
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import java.time.Duration
 import java.util.UUID
 
 @SpringBootTest
 @ActiveProfiles("test")
+@DirtiesContext
 @EmbeddedKafka(
     partitions = 1,
     topics = ["test-topic", "test-topic-retry", "test-topic-dlt", "test-output-topic"],

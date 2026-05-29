@@ -1,0 +1,19 @@
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Suppress noisy Kafka embedded broker teardown output -->
+    <logger name="kafka" level="OFF"/>
+    <logger name="org.apache.kafka" level="OFF"/>
+    <logger name="org.apache.kafka.clients.NetworkClient" level="OFF"/>
+    <logger name="state.change.logger" level="OFF"/>
+
+    <!-- App logs visible at INFO, everything else suppressed -->
+    <logger name="no.nav.reops" level="INFO"/>
+    <root level="ERROR">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

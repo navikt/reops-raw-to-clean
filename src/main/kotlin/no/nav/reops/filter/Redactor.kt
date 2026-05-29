@@ -10,6 +10,16 @@ internal class Redactor(
         val allExcluded = if (globalExcludedLabels.isEmpty()) excludedLabels else globalExcludedLabels + excludedLabels
         var result = input
 
+        // 0) Sanctioning: for each rule that is sanctioned AND excluded, preserve its matched spans
+        //    as placeholders so no other rule can fire inside them. Restored last.
+        val sanctionedStores = mutableListOf<PlaceholderStore>()
+        for (rule in rules) {
+            if (!rule.sanctioned || rule.label !in allExcluded) continue
+            val store = PlaceholderStore(prefix = "__SANCTIONED_${rule.name.uppercase()}_", suffix = "__")
+            result = store.preserveAll(result, rule.regex)
+            sanctionedStores.add(store)
+        }
+
         // 1) Optionally preserve URL-like substrings in free-text
         val preservedUrls = PlaceholderStore(prefix = "__PRESERVED_URL_", suffix = "__")
         if (preserveUrls) {
@@ -33,6 +43,10 @@ internal class Redactor(
         // 3) Restore URLs
         result = preservedUrls.restoreAll(result)
 
+        // 4) Restore sanctioned spans (reverse order of preservation)
+        for (store in sanctionedStores.asReversed()) {
+            result = store.restoreAll(result)
+        }
 
         return result
     }
@@ -43,13 +57,21 @@ internal class Redactor(
         private val values = mutableListOf<String>()
 
         fun preserveAll(input: String, regex: Regex, preprocess: ((String) -> String)? = null): String {
-            var out = input
-            regex.findAll(out).forEachIndexed { i, match ->
-                val value = preprocess?.invoke(match.value) ?: match.value
-                values.add(value)
-                out = out.replace(match.value, placeholder(i))
+            val matches = regex.findAll(input).toList()
+            if (matches.isEmpty()) return input
+
+            // Collect values in forward order (placeholder(0) = first match, etc.)
+            matches.forEach { match ->
+                values.add(preprocess?.invoke(match.value) ?: match.value)
             }
-            return out
+
+            // Replace spans right-to-left so earlier offsets stay valid
+            val sb = StringBuilder(input)
+            matches.asReversed().forEachIndexed { reversedI, match ->
+                val i = matches.size - 1 - reversedI
+                sb.replace(match.range.first, match.range.last + 1, placeholder(i))
+            }
+            return sb.toString()
         }
 
         fun restoreAll(input: String): String {

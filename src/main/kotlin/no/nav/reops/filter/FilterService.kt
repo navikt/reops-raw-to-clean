@@ -78,13 +78,13 @@ internal object DefaultPolicies {
 }
 
 internal data class RedactionRule(
-    val name: String, val label: String, val regex: Regex, val counter: Counter, val preserve: Boolean = false
+    val name: String, val label: String, val regex: Regex, val counter: Counter, val preserve: Boolean = false, val sanctioned: Boolean = false
 )
 
 internal object RuleSetFactory {
     fun create(meterRegistry: MeterRegistry): List<RedactionRule> = listOf(
         keepRule(meterRegistry),
-        rule("uuid", "PROXY-UUID", FilterPatterns.UUID_REGEX, meterRegistry),
+        rule("uuid", "PROXY-UUID", FilterPatterns.UUID_REGEX, meterRegistry, sanctioned = true),
         rule("filepath", "PROXY-FILEPATH", FilterPatterns.FILEPATH_REGEX, meterRegistry),
         rule("fnr", "PROXY-FNR", FilterPatterns.FNR_REGEX, meterRegistry),
         rule("navident", "PROXY-NAVIDENT", FilterPatterns.NAVIDENT_REGEX, meterRegistry),
@@ -108,9 +108,9 @@ internal object RuleSetFactory {
         preserve = true
     )
 
-    private fun rule(name: String, label: String, regex: Regex, meterRegistry: MeterRegistry): RedactionRule =
+    private fun rule(name: String, label: String, regex: Regex, meterRegistry: MeterRegistry, sanctioned: Boolean = false): RedactionRule =
         RedactionRule(
-            name = name, label = label, regex = regex, counter = counter(meterRegistry, name), preserve = false
+            name = name, label = label, regex = regex, counter = counter(meterRegistry, name), preserve = false, sanctioned = sanctioned
         )
 
     private fun counter(meterRegistry: MeterRegistry, ruleName: String): Counter =

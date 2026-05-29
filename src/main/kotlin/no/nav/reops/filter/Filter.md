@@ -151,6 +151,7 @@ then restored unchanged after rule application.
 |--------------------------------------|---------------------------------------------------------------------------------------------------|
 | URL-like substrings (free-text only) | Avoid redacting legitimate routing/link text inside normal strings (not `payload.url`/`referrer`) |
 | `nav123456`, `test654321`            | Explicitly allowed identifiers (matched by a "keep" rule and not replaced)                        |
+| UUID spans (when UUID rule opted out) | UUID is a **sanctioned** pattern. Even when `OptOutFilter.UUID` is active (UUID rule excluded), UUID-shaped spans are preserved as placeholders before other rules run, then restored — preventing any other rule from partially matching inside a UUID. |
 
 Notes:
 - UUIDs are **redacted** (`[PROXY-UUID]`) on all fields. The only exception is the `payload.website` field

@@ -59,6 +59,18 @@ kotlin {
 tasks.withType<Test> {
 	useJUnitPlatform()
 	jvmArgs("--enable-native-access=ALL-UNNAMED")
+	testLogging {
+		events("passed", "failed", "skipped")
+		showExceptions = true
+		showCauses = true
+		showStackTraces = false
+		showStandardStreams = false
+		afterSuite(KotlinClosure2({ desc: TestDescriptor, result: TestResult ->
+			if (desc.parent == null) {
+				println("\n${result.resultType} — ${result.testCount} tests: ${result.successfulTestCount} passed, ${result.failedTestCount} failed, ${result.skippedTestCount} skipped")
+			}
+		}))
+	}
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
