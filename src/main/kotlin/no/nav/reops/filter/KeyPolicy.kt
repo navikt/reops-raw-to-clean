@@ -17,7 +17,7 @@ internal class KeyPolicy(
         key in droppedKeys -> Decision.Drop
         key in preservedKeys -> Decision.Preserve(value)
         forcedValues.containsKey(key) -> Decision.Replace(forcedValues.getValue(key))
-        key in advertisingIdKeys -> Decision.Replace("[PROXY]")
+        key in advertisingIdKeys -> Decision.Replace("[PROXY-ADVERTISING-ID]")
         else -> Decision.None
     }
 }
