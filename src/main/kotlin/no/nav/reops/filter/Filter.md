@@ -74,7 +74,7 @@ These rules are applied based on the **field name**, before any regex-based reda
 | `api_key`                                                                                          | Always preserved           | unchanged           |
 | `device_id`                                                                                        | Always preserved           | unchanged           |
 | `website`                                                                                          | Always preserved           | unchanged           |
-| Advertising IDs:<br>`idfa`, `idfv`, `gaid`, `adid`, `android_id`, `aaid`, `msai`, `advertising_id` | Force anonymization        | `"[PROXY]"`         |
+| Advertising IDs:<br>`idfa`, `idfv`, `gaid`, `adid`, `android_id`, `aaid`, `msai`, `advertising_id` | Force anonymization        | `"[PROXY-ADVERTISING-ID]"`         |
 | Any map / list / set / array                                                                       | Traversed recursively      | structure preserved |
 
 **Purpose:**  
