@@ -29,5 +29,5 @@ replay_pid*
 /build/
 /.idea/
 
-# docker compose
-.compose/
+# docker compose local only data
+.compose/kafka/
