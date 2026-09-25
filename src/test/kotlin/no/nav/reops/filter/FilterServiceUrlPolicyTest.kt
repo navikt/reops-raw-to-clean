@@ -77,7 +77,7 @@ class FilterServiceUrlPolicyTest {
     }
 
     @Test
-    fun `filterEvent does not redact filepath for nested non payload url fields`() {
+    fun `filterEvent redacts high-confidence filepaths for nested non payload url-like fields, keeps low-confidence ones`() {
         val service = filterService()
 
         val base = TestEventFactory.minimalEvent()
@@ -103,7 +103,7 @@ class FilterServiceUrlPolicyTest {
         assertEquals("/var/www/html/index.php", inner.get("url").asString())
 
         val cfg = inner.get("config")
-        assertEquals("C:\\Users\\Admin\\file.exe", cfg.get("url").asString())
+        assertEquals("[PROXY-FILEPATH]", cfg.get("url").asString())
     }
 
     @Test
@@ -156,7 +156,7 @@ class FilterServiceUrlPolicyTest {
     }
 
     @Test
-    fun `filterEvent keeps payload url path that only looks like windows path unchanged`() {
+    fun `filterEvent redacts payload url path that is a drive-letter filepath, not a real route`() {
         val service = filterService()
         val base = TestEventFactory.minimalEvent()
         val event = base.copy(
@@ -164,7 +164,7 @@ class FilterServiceUrlPolicyTest {
         )
 
         val out = service.filterEvent(event)
-        assertEquals("/C:/Users/Admin/page", out.payload.url)
+        assertEquals("/[PROXY-FILEPATH]", out.payload.url)
     }
 
     @Test

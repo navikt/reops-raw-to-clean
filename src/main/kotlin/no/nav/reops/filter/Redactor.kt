@@ -30,7 +30,7 @@ internal class Redactor(
 
         // 2) Apply rules (same order, same checks)
         for (rule in rules) {
-            if (rule.label in allExcluded) continue
+            if (rule.label in allExcluded && !rule.alwaysEnforced) continue
             if (!rule.regex.containsMatchIn(result)) continue
 
             rule.counter.increment()

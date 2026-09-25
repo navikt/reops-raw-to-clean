@@ -78,14 +78,32 @@ internal object DefaultPolicies {
 }
 
 internal data class RedactionRule(
-    val name: String, val label: String, val regex: Regex, val counter: Counter, val preserve: Boolean = false, val sanctioned: Boolean = false
+    val name: String,
+    val label: String,
+    val regex: Regex,
+    val counter: Counter,
+    val preserve: Boolean = false,
+    val sanctioned: Boolean = false,
+    // When true, this rule always runs, even if its label is in the caller's
+    // excludedLabels set (e.g. UrlPolicy's pathExcludedLabels). Reserved for rules
+    // whose pattern cannot occur in a legitimate URL path/query by construction —
+    // see FilterPatterns.FILEPATH_HIGH_CONFIDENCE_REGEX.
+    val alwaysEnforced: Boolean = false
 )
 
 internal object RuleSetFactory {
     fun create(meterRegistry: MeterRegistry): List<RedactionRule> = listOf(
         keepRule(meterRegistry),
         rule("uuid", "PROXY-UUID", FilterPatterns.UUID_REGEX, meterRegistry, sanctioned = true),
-        rule("filepath", "PROXY-FILEPATH", FilterPatterns.FILEPATH_REGEX, meterRegistry),
+        // Same output label ("PROXY-FILEPATH") for both — downstream consumers see one
+        // placeholder value regardless of which branch matched. Only "low_confidence"
+        // is ever excluded (see UrlPolicy.pathExcludedLabels); "high_confidence" is
+        // alwaysEnforced so it still fires inside URL path-parts.
+        rule(
+            "filepath_high_confidence", "PROXY-FILEPATH", FilterPatterns.FILEPATH_HIGH_CONFIDENCE_REGEX,
+            meterRegistry, alwaysEnforced = true
+        ),
+        rule("filepath_low_confidence", "PROXY-FILEPATH", FilterPatterns.FILEPATH_LOW_CONFIDENCE_REGEX, meterRegistry),
         rule("fnr", "PROXY-FNR", FilterPatterns.FNR_REGEX, meterRegistry),
         rule("navident", "PROXY-NAVIDENT", FilterPatterns.NAVIDENT_REGEX, meterRegistry),
         rule("email", "PROXY-EMAIL", FilterPatterns.EMAIL_REGEX, meterRegistry),
@@ -108,10 +126,22 @@ internal object RuleSetFactory {
         preserve = true
     )
 
-    private fun rule(name: String, label: String, regex: Regex, meterRegistry: MeterRegistry, sanctioned: Boolean = false): RedactionRule =
-        RedactionRule(
-            name = name, label = label, regex = regex, counter = counter(meterRegistry, name), preserve = false, sanctioned = sanctioned
-        )
+    private fun rule(
+        name: String,
+        label: String,
+        regex: Regex,
+        meterRegistry: MeterRegistry,
+        sanctioned: Boolean = false,
+        alwaysEnforced: Boolean = false
+    ): RedactionRule = RedactionRule(
+        name = name,
+        label = label,
+        regex = regex,
+        counter = counter(meterRegistry, name),
+        preserve = false,
+        sanctioned = sanctioned,
+        alwaysEnforced = alwaysEnforced
+    )
 
     private fun counter(meterRegistry: MeterRegistry, ruleName: String): Counter =
         Counter.builder("redactions_total").tag("rule", ruleName).register(meterRegistry)
