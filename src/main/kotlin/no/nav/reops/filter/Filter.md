@@ -108,10 +108,15 @@ For URL handling:
 
 ### URL rule exclusions
 
-| URL section  | Disabled rules   | Why                                                               |
-|--------------|------------------|-------------------------------------------------------------------|
-| Path-part    | `PROXY-FILEPATH` | Prevent false positives where URL paths resemble filesystem paths |
-| Query string | *(none)*         | Query strings often contain real PII and must be fully sanitized  |
+| URL section  | Disabled rules              | Why                                                                                                    |
+|--------------|------------------------------|----------------------------------------------------------------------------------------------------------|
+| Path-part    | `filepath_low_confidence`   | Prevent false positives where URL paths resemble filesystem paths (generic multi-segment paths)         |
+| Query string | *(none)*                     | Query strings often contain real PII and must be fully sanitized                                         |
+
+`filepath_high_confidence` (Windows drive-letter roots, UNC paths, `file://` scheme) is
+**never** excluded, even in a URL path-part — none of those can occur in a legitimate
+http(s) URL by construction of the URL spec, so there's no ambiguity to protect against.
+Both rules emit the same `[PROXY-FILEPATH]` placeholder.
 
 **Purpose:**  
 URL paths are treated as identifiers and routing data.  
@@ -126,7 +131,8 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
 | Rule                | Label                  | Detects                                        | Output                   |
 |---------------------|------------------------|------------------------------------------------|--------------------------|
 | UUID                | `PROXY-UUID`           | UUIDs (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | `[PROXY-UUID]`           |
-| File path           | `PROXY-FILEPATH`       | Filesystem paths                               | `[PROXY-FILEPATH]`       |
+| File path (high-confidence: drive-letter, UNC, `file://`) | `PROXY-FILEPATH` | Filesystem paths that can never be a valid URL path/query | `[PROXY-FILEPATH]` |
+| File path (low-confidence: generic multi-segment paths)   | `PROXY-FILEPATH` | Filesystem paths, ambiguous with real URL routes (excluded from URL path-part, see above) | `[PROXY-FILEPATH]` |
 | National ID (FNR)   | `PROXY-FNR`            | 11-digit Norwegian IDs                         | `[PROXY-FNR]`            |
 | NAV ident           | `PROXY-NAVIDENT`       | `X123456` format                               | `[PROXY-NAVIDENT]`       |
 | Email               | `PROXY-EMAIL`          | Email addresses                                | `[PROXY-EMAIL]`          |

@@ -46,22 +46,44 @@ internal object FilterPatterns {
         """.trimIndent(), options = setOf(RegexOption.COMMENTS)
     )
 
-    val FILEPATH_REGEX = Regex(
+    // Characters allowed inside a single path segment / filename. Widened beyond plain
+    // ASCII to also cover Norwegian letters and the punctuation that shows up in real
+    // Windows/OneDrive filenames and document titles (commas, parens, apostrophes,
+    // en/em dashes) — without this, a match stops at the first non-ASCII character and
+    // everything after it (often the most sensitive part, e.g. a case document title)
+    // is left unredacted next to the placeholder.
+    private const val SEGMENT_CHARS = "A-Za-z0-9ÆØÅæøå._\\-\\s%,()'\u2013\u2014"
+
+    // High-confidence: patterns that cannot occur in a legitimate web URL path or query
+    // string, by construction of the URL/URI spec (no valid http(s) URL contains a raw
+    // drive letter root, a raw UNC path, or the file: scheme). Safe to redact everywhere,
+    // including inside fields otherwise treated as URLs (see UrlPolicy/RedactionRule.alwaysEnforced).
+    val FILEPATH_HIGH_CONFIDENCE_REGEX = Regex(
         """(?x)
             (?:
                 [A-Za-z]:[/\\]
-                (?:[A-Za-z0-9._\-\s%]+[/\\])*
-                [A-Za-z0-9._\-\s%]+
+                (?:[$SEGMENT_CHARS]+[/\\])*
+                [$SEGMENT_CHARS]+
                 (?:\.[A-Za-z0-9]{1,10})?
                 |
-                \\\\[A-Za-z0-9._\-]+\\[A-Za-z0-9._\-]+
-                (?:\\[A-Za-z0-9._\-\s]+)*
-                (?:\\[A-Za-z0-9._\-\s]+(?:\.[A-Za-z0-9]{1,10})?)?
+                \\\\[$SEGMENT_CHARS]+\\[$SEGMENT_CHARS]+
+                (?:\\[$SEGMENT_CHARS]+)*
+                (?:\\[$SEGMENT_CHARS]+(?:\.[A-Za-z0-9]{1,10})?)?
                 |
                 file:///
-                [A-Za-z0-9._\-\s/%:]+
+                [$SEGMENT_CHARS/%:]+
                 (?:\.[A-Za-z0-9]{1,10})?
-                |
+            )
+        """.trimIndent(), options = setOf(RegexOption.COMMENTS)
+    )
+
+    // Low-confidence: generic absolute/relative multi-segment paths. Structurally
+    // indistinguishable from a real URL route (e.g. "/soknad/behandling/123.html"), so
+    // this is excluded from the path-part of fields classified as URLs (UrlPolicy) to
+    // avoid false-positiving legitimate, publicly-routable page paths.
+    val FILEPATH_LOW_CONFIDENCE_REGEX = Regex(
+        """(?x)
+            (?:
                 (?:(?:/[A-Za-z0-9._\-]+(?:/[A-Za-z0-9._\-]+)+(?:\.[A-Za-z0-9]{1,10})?)
                 |
                 (?:/(?=.*[A-Za-z])[A-Za-z0-9._\-]+\.[A-Za-z0-9]{1,10}))

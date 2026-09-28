@@ -109,7 +109,7 @@ class FilterServiceUrlFieldExclusionsTest {
     // --- test_url_field_exclusions_with_filepath_like_paths ---
 
     @Test
-    fun `filepath-like paths in url-like fields are preserved`() {
+    fun `low-confidence filepath-like paths in url-like fields are preserved, high-confidence ones are still redacted`() {
         val service = filterService()
         val base = TestEventFactory.minimalEvent()
         val event = base.copy(
@@ -124,6 +124,8 @@ class FilterServiceUrlFieldExclusionsTest {
                     mapOf(
                         "path" to "/home/user/documents",
                         "href" to "/var/www/html/page",
+                        // Drive-letter root is a high-confidence filepath tell (no legitimate
+                        // URL path begins with "<letter>:") — redacted even in a url-like field.
                         "pathname" to "/C:/Users/Admin/file",
                         "url_path" to "./etc/config/settings",
                         "link" to "~/Documents/file.txt",
@@ -141,7 +143,7 @@ class FilterServiceUrlFieldExclusionsTest {
 
         assertEquals("/home/user/documents", data.get("path").asString())
         assertEquals("/var/www/html/page", data.get("href").asString())
-        assertEquals("/C:/Users/Admin/file", data.get("pathname").asString())
+        assertEquals("/[PROXY-FILEPATH]", data.get("pathname").asString())
         assertEquals("./etc/config/settings", data.get("url_path").asString())
         assertEquals("~/Documents/file.txt", data.get("link").asString())
         assertEquals("/usr/local/bin/app", data.get("destination").asString())
@@ -316,7 +318,7 @@ class FilterServiceUrlFieldExclusionsTest {
     // --- test_url_fields_with_full_urls ---
 
     @Test
-    fun `full urls with protocols are preserved in url-like fields`() {
+    fun `full urls with protocols are preserved in url-like fields, except high-confidence filepath spans`() {
         val service = filterService()
         val base = TestEventFactory.minimalEvent()
         val event = base.copy(
@@ -331,6 +333,8 @@ class FilterServiceUrlFieldExclusionsTest {
                     mapOf(
                         "path" to "https://example.com/home/user/path",
                         "href" to "http://test.no/var/www/html",
+                        // Drive-letter root inside the path is still a high-confidence tell,
+                        // even embedded after a real domain.
                         "link" to "https://nav.no/C:/Windows/System32",
                         "destination" to "https://site.com/usr/local/bin"
                     )
@@ -343,7 +347,7 @@ class FilterServiceUrlFieldExclusionsTest {
 
         assertEquals("https://example.com/home/user/path", data.get("path").asString())
         assertEquals("http://test.no/var/www/html", data.get("href").asString())
-        assertEquals("https://nav.no/C:/Windows/System32", data.get("link").asString())
+        assertEquals("https://nav.no/[PROXY-FILEPATH]", data.get("link").asString())
         assertEquals("https://site.com/usr/local/bin", data.get("destination").asString())
     }
 
