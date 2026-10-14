@@ -18,6 +18,49 @@ class FilterServicePhoneVariantsTest {
         assertEquals("Call me at [PROXY-PHONE]", redact("Call me at 98765432"))
     }
 
+    // ── separated phone variants ─────────────────────────────────────
+    //
+    // Norwegian phone numbers are canonically written with spaces:
+    // "987 65 432" (3+2+3) or "98 76 54 32" (2+2+2+2), and often prefixed
+    // with "+47" or "0047". The bare [2-9]\d{7} pattern misses all of these,
+    // leaking the full number — including in URL query params, where UrlPolicy
+    // decodes %20 before redaction.
+
+    @Test
+    fun `redacts phone with 3-2-3 spacing`() {
+        assertEquals("Ring [PROXY-PHONE]", redact("Ring 987 65 432"))
+    }
+
+    @Test
+    fun `redacts phone with 2-2-2-2 spacing`() {
+        assertEquals("Ring [PROXY-PHONE]", redact("Ring 98 76 54 32"))
+    }
+
+    @Test
+    fun `redacts phone with +47 prefix`() {
+        assertEquals("Ring [PROXY-PHONE]", redact("Ring +47 98765432"))
+    }
+
+    @Test
+    fun `redacts phone with +47 prefix and spacing`() {
+        assertEquals("Ring [PROXY-PHONE]", redact("Ring +47 987 65 432"))
+    }
+
+    @Test
+    fun `redacts phone with 0047 prefix`() {
+        assertEquals("Ring [PROXY-PHONE]", redact("Ring 004798765432"))
+    }
+
+    @Test
+    fun `does not redact a year`() {
+        assertEquals("i 2024 skjedde det", redact("i 2024 skjedde det"))
+    }
+
+    @Test
+    fun `does not redact two unrelated short numbers`() {
+        assertEquals("hylle 42 boks 987", redact("hylle 42 boks 987"))
+    }
+
     @Test
     fun `redacts uuid containing phone-like start`() {
         val input = "Do not call me at AD748BD6-484B-416C-B444-84EE98765432 that's not a phone number, but a UUID"

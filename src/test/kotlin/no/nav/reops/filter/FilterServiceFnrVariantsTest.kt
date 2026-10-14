@@ -38,6 +38,36 @@ class FilterServiceFnrVariantsTest {
         assertEquals("fnr.[PROXY-FNR]", redact("fnr.12345678901"))
     }
 
+    // ── separated fnr variants ───────────────────────────────────────
+    //
+    // People routinely write fødselsnummer with a space or dash between the
+    // birth-date part and the person-number part ("123456 78901"). The bare
+    // \d{11} pattern misses both. The separator is a single space or dash
+    // between exactly 6+5 digits — wider patterns would false-positive on
+    // dates, measurements and other innocent digit clusters.
+
+    @Test
+    fun `redacts fnr with space separator`() {
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 123456 78901"))
+    }
+
+    @Test
+    fun `redacts fnr with dash separator`() {
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 123456-78901"))
+    }
+
+    @Test
+    fun `does not redact two unrelated short digit groups`() {
+        // 3+3 digits is not an fnr shape; must stay untouched
+        assertEquals("vekt 123 456 gram", redact("vekt 123 456 gram"))
+    }
+
+    @Test
+    fun `does not redact date-like digit groups`() {
+        // ISO-ish date fragments are not fnr
+        assertEquals("2026 10 14", redact("2026 10 14"))
+    }
+
     @Test
     fun `redacts fnr after slash delimiter`() {
         assertEquals("fnr/[PROXY-FNR]", redact("fnr/12345678901"))

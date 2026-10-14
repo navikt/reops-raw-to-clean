@@ -143,6 +143,104 @@ class FilterServiceUrlPolicyTest {
         assertEquals("/api/data?path=[PROXY-FILEPATH]&ssn=[PROXY-FNR]&redirect=[PROXY-FILEPATH]", out.payload.url)
     }
 
+    // ── search-query masking with multi-word values ─────────────────
+    //
+    // Observed in prod (BigQuery url_path): a SPA had put raw user prose into
+    // location.href (".../?search=<multiple words with spaces>"). SEARCH_REGEX
+    // ([?&](?:q|query|search|k|ord)=[^&\s]+) stopped at the first space, so it
+    // masked only "?search=<first word>" — eating the '?' marker and leaking
+    // the remaining words unmasked into the URL (and downstream into url_path,
+    // since no '?' remained for the enricher's query split to find).
+    // UrlPolicy also URL-decodes the query before redacting, so %20 and '+'
+    // become spaces and leak the same way.
+    // Desired: the entire search VALUE is masked, up to the next '&', a '#'
+    // fragment marker, or end of string — spaces inside a query value are
+    // still part of that value.
+
+    @Test
+    fun `filterEvent masks entire search param value containing raw spaces`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val event = base.copy(
+            type = "event",
+            payload = base.payload.copy(
+                url = "https://eksempel.nav.no/verktoy/?search=gronnsak i panna med hvitlok"
+            )
+        )
+
+        val out = service.filterEvent(event)
+        assertEquals("https://eksempel.nav.no/verktoy/[PROXY-SEARCH]", out.payload.url)
+    }
+
+    @Test
+    fun `filterEvent masks multi-word search param but stops at next param`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val event = base.copy(
+            type = "event",
+            payload = base.payload.copy(url = "/sok?q=tromlo fakkel&side=2")
+        )
+
+        val out = service.filterEvent(event)
+        assertEquals("/sok[PROXY-SEARCH]&side=2", out.payload.url)
+    }
+
+    @Test
+    fun `filterEvent masks percent-encoded multi-word search param`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val event = base.copy(
+            type = "event",
+            payload = base.payload.copy(url = "/sok?q=tromlo%20fakkel&side=2")
+        )
+
+        val out = service.filterEvent(event)
+        assertEquals("/sok[PROXY-SEARCH]&side=2", out.payload.url)
+    }
+
+    @Test
+    fun `filterEvent masks plus-encoded multi-word search param`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val event = base.copy(
+            type = "event",
+            payload = base.payload.copy(url = "/sok?q=tromlo+fakkel&side=2")
+        )
+
+        val out = service.filterEvent(event)
+        assertEquals("/sok[PROXY-SEARCH]&side=2", out.payload.url)
+    }
+
+    @Test
+    fun `filterEvent masks several multi-word search params in one query`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val event = base.copy(
+            type = "event",
+            payload = base.payload.copy(url = "/sok?q=flis dyne&ord=piano stolpe")
+        )
+
+        val out = service.filterEvent(event)
+        // The mask consumes the leading '?'/'&' delimiter (same as the single-param
+        // case), so the second placeholder directly follows the first.
+        assertEquals("/sok[PROXY-SEARCH][PROXY-SEARCH]", out.payload.url)
+    }
+
+    @Test
+    fun `filterEvent masks spaced search param but preserves fragment`() {
+        // location.href includes the fragment, so tracked urls can carry one.
+        // A raw '#' terminates the query per URL spec — the mask must not eat it.
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val event = base.copy(
+            type = "event",
+            payload = base.payload.copy(url = "/sok?q=tromlo fakkel#treffliste")
+        )
+
+        val out = service.filterEvent(event)
+        assertEquals("/sok[PROXY-SEARCH]#treffliste", out.payload.url)
+    }
+
     @Test
     fun `filterEvent keeps payload url without query unchanged`() {
         val service = filterService()

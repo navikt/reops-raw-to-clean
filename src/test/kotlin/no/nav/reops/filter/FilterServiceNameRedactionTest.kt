@@ -23,6 +23,34 @@ class FilterServiceNameRedactionTest {
         assertEquals("[PROXY-NAME]", redact("Ola Per Nordmann"))
     }
 
+    // ── long chains of capitalized words ─────────────────────────────
+    //
+    // Names have no standard shape — any number of words, from any culture.
+    // Today's pattern stops at 3 words, leaking the tail of longer names
+    // ("Ola Nordmann Hansen Berg" -> "[PROXY-NAME] Berg"). A long chain of
+    // capitalized words is unlikely to be useful analytics content anyway,
+    // so once two capitalized words have matched, slurp the rest of the chain.
+    // Accepted collateral: strings like book titles in title-case get masked
+    // too — safe direction.
+
+    @Test
+    fun `redacts four-word name fully`() {
+        assertEquals("[PROXY-NAME]", redact("Ola Nordmann Hansen Berg"))
+    }
+
+    @Test
+    fun `redacts five-word name fully`() {
+        assertEquals("[PROXY-NAME]", redact("Anne Marie Kristin Lise Beate"))
+    }
+
+    @Test
+    fun `redacts name chain embedded in prose`() {
+        assertEquals(
+            "snakket med [PROXY-NAME] i gaar",
+            redact("snakket med Ola Nordmann Hansen Berg i gaar")
+        )
+    }
+
     @Test
     fun `Hele Norge is not redacted because Norge is excluded`() {
         val result = redact("Hele Norge")

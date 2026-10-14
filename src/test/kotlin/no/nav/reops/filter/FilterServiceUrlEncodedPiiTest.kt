@@ -90,6 +90,23 @@ class FilterServiceUrlEncodedPiiTest {
         assertEquals("https://nav.no/tjeneste?bruker=[PROXY-NAME]", out.payload.referrer)
     }
 
+    @Test
+    fun `redacts separated identifiers and complete fictional address after query decoding`() {
+        val service = filterService()
+        val base = TestEventFactory.minimalEvent()
+        val cases = listOf(
+            "/finn?person=123456%2078901" to "/finn?person=[PROXY-FNR]",
+            "/finn?telefon=987%2065%20432" to "/finn?telefon=[PROXY-PHONE]",
+            "/finn?telefon=%2B47+987+65+432" to "/finn?telefon=[PROXY-PHONE]",
+            "/finn?adresse=Fantasigata+15+A%2C+1234+Ingenstedsby" to "/finn?adresse=[PROXY-ADDRESS]"
+        )
+
+        for ((url, expected) in cases) {
+            val event = base.copy(payload = base.payload.copy(url = url))
+            assertEquals(expected, service.filterEvent(event).payload.url, "Input: $url")
+        }
+    }
+
     // ─── ADDRESS: space → '%20' or '+' ───────────────────────────────────────
 
     @Test

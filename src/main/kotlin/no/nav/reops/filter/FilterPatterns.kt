@@ -3,11 +3,15 @@ package no.nav.reops.filter
 internal object FilterPatterns {
     val KEEP_REGEX = Regex("((nav|test)[0-9]{6})")
 
-    val FNR_REGEX = Regex("(?<!\\d)\\d{11}(?!\\d)")
+    val FNR_REGEX = Regex("(?<!\\d)\\d{6}[ -]?\\d{5}(?!\\d)")
     val NAVIDENT_REGEX = Regex("(?<![a-zA-Z0-9])[a-zA-Z]\\d{6}(?!\\d)")
     val EMAIL_REGEX = Regex("(?:mailto:)?[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
     val IP_REGEX = Regex("(?<!\\d)\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)")
-    val PHONE_REGEX = Regex("(?<!\\d)[2-9]\\d{7}(?!\\d)")
+    // Restrict separators to common Norwegian groupings rather than accepting
+    // arbitrary runs of digits and whitespace. Never span lines.
+    val PHONE_REGEX = Regex(
+        "(?<!\\d)(?:(?:\\+47|0047)[ ]?)?(?:[2-9]\\d{7}|[2-9]\\d{2} \\d{2} \\d{3}|[2-9]\\d(?: \\d{2}){3})(?!\\d)"
+    )
 
     // Words that should never be treated as (parts of) a person's name.
     private val NAME_EXCLUSIONS = setOf(
@@ -22,15 +26,42 @@ internal object FilterPatterns {
     }
 
     val NAME_REGEX = Regex(
-        "\\b$NOT_EXCLUDED_WORD[\\s.]$NOT_EXCLUDED_WORD(?:[\\s.]$NOT_EXCLUDED_WORD)?\\b"
+        "\\b$NOT_EXCLUDED_WORD[\\s.]$NOT_EXCLUDED_WORD(?:[\\s.]$NOT_EXCLUDED_WORD)*\\b"
     )
-    val ADDRESS_REGEX = Regex("\\b\\d{4}\\s[A-ZÆØÅ][A-ZÆØÅa-zæøå]+(?:\\s[A-ZÆØÅa-zæøå]+)*\\b")
+
+    private const val ADDRESS_WORD = "[\\p{Lu}][\\p{L}\\p{M}'’.-]*"
+    private const val STREET_TYPE = "(?:gate|gata|gaten|vei|veien|veg|vegen|sti|stien|allé|alle|alléen|alleen|plass|plassen|torg|torget|bakken|svingen|lia|tunet)"
+    private const val HOUSE_NUMBER = "\\d{1,4}(?:[ ]?[A-Za-z])?"
+    private const val POSTAL_PLACE = "\\d{4}[ \\t]+$ADDRESS_WORD(?:[ \\t]+$ADDRESS_WORD)*"
+    private const val STREET_NAME = "$ADDRESS_WORD(?:[ \\t]+(?:$ADDRESS_WORD|(?i:$STREET_TYPE)))*"
+    private const val ADDRESS_LINE_BREAK = "(?:[ \\t]*,[ \\t]*|[ \\t]*\\r?\\n[ \\t]*|[ \\t]+)"
+
+    // Full addresses need a postcode/place to distinguish them from product
+    // names and numbers. Partial streets need a recognizable street suffix.
+    // Run before NAME_REGEX: otherwise multiword streets/places are destroyed
+    // before their address context can be recognized.
+    val ADDRESS_REGEX = Regex(
+        "\\b(?:" +
+            "(?i:postboks|p\\.?o\\.?[ ]?box)[ \\t]+\\d+(?:[ \\t]+$ADDRESS_WORD)*" +
+            "(?:$ADDRESS_LINE_BREAK$POSTAL_PLACE)?" +
+            "|$STREET_NAME[ \\t]+$HOUSE_NUMBER$ADDRESS_LINE_BREAK$POSTAL_PLACE" +
+            // Compound streets are case-insensitive, but stay within one word:
+            // matching arbitrary lowercase words before a suffix swallows prose.
+            "|(?:(?iu:[\\p{L}][\\p{L}\\p{M}'’.-]*$STREET_TYPE)|$STREET_NAME[ \\t]+(?i:$STREET_TYPE))" +
+            "[ \\t]+$HOUSE_NUMBER" +
+            "|$POSTAL_PLACE)\\b"
+    )
 
     val SECRET_ADDRESS_REGEX = Regex("(?i)hemmelig(?:%20|\\s+)(?:20\\s*%(?:%20|\\s+))?adresse")
     val ACCOUNT_REGEX = Regex("(?<!\\d)\\d{4}\\.?\\d{2}\\.?\\d{5}(?!\\d)")
     val ORG_NUMBER_REGEX = Regex("(?<!\\d)\\d{9}(?!\\d)")
     val LICENSE_PLATE_REGEX = Regex("(?<![a-zA-Z])[A-Z]{2}\\s?\\d{5}(?!\\d)")
-    val SEARCH_REGEX = Regex("[?&](?:q|query|search|k|ord)=[^&\\s]+")
+    // The value runs until the next '&' (next param), a '#' fragment marker, or
+    // end of string. Spaces are part of the value: raw-to-clean URL-decodes the
+    // query before matching (UrlPolicy), and raw spaces appear in tracked urls
+    // when a SPA pushes unencoded prose into location.href. Stopping at the
+    // first space leaked every word after the first downstream.
+    val SEARCH_REGEX = Regex("[?&](?:q|query|search|k|ord)=[^&#]+")
 
     val UUID_REGEX = Regex("(?i)(?<![0-9a-f])[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![0-9a-f])")
 
