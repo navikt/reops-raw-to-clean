@@ -1,71 +1,190 @@
 name: "Deploy"
-run-name: "Deploy"
+run-name: "Deploy — ${{ github.event.inputs.environment || github.event_name }}"
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deploy selected ref to dev, promote latest tagged dev image, or refresh a tagged release"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
+          - dev-rebuild
+          - prod-rebuild
+      release_tag:
+        description: "Optional previous release tag; blank uses the default release/ref"
+        required: false
+        type: string
+  schedule:
+    - cron: "23 4 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 
 jobs:
   test:
-    name: "test"
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/ci.yaml
+
+  deploy-dev:
+    if: >-
+      !cancelled() && needs.test.result != 'failure' && needs.test.result != 'cancelled' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev' && inputs.release_tag == ''))
+    needs: test
+    runs-on: ubuntu-latest-8-cores
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build and push
+        id: image
+        uses: nais/docker-build-push@v0
+        with:
+          team: team-researchops
+          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
+          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
+          pull: true
+          build_args: CI=true
+      - name: Deploy to dev
+        uses: nais/deploy/actions/deploy@v3
+        env:
+          CLUSTER: dev-gcp
+          RESOURCE: .nais/nais-dev.yaml
+          VAR: image=${{ steps.image.outputs.image }}
+      - name: Record tested dev deployment
+        if: github.event_name == 'push'
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tag="dev-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git tag -a "$tag" "$GITHUB_SHA" \
+            -m "Development deployment of $GITHUB_SHA" -m "Image: $IMAGE"
+          git push origin "refs/tags/$tag"
+
+  redeploy-dev:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.environment == 'dev' &&
+      inputs.release_tag != '' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v7
-      - name: JDK
-        uses: actions/setup-java@v6
         with:
-          distribution: temurin
-          java-version: '25'
-      - name: Setup gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          dependency-graph: generate-and-submit
-      - name: Build and test
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Resolve previous dev deployment
+        id: release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gradlew build
+          RELEASE_MODE: redeploy
+          ENVIRONMENT: dev
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: bash .github/scripts/resolve-release.sh
+      - name: Redeploy recorded image to dev
+        uses: nais/deploy/actions/deploy@v3
+        env:
+          CLUSTER: dev-gcp
+          RESOURCE: .nais/nais-dev.yaml
+          VAR: image=${{ steps.release.outputs.image }}
 
-  docker:
-    name: "docker"
+  promote-prod:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Resolve release for prod
+        id: release
+        env:
+          RELEASE_MODE: promote
+          ENVIRONMENT: prod
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: bash .github/scripts/resolve-release.sh
+      - name: Promote image to prod
+        uses: nais/deploy/actions/deploy@v3
+        env:
+          CLUSTER: prod-gcp
+          RESOURCE: .nais/nais-prod.yaml
+          VAR: image=${{ steps.release.outputs.image }}
+      - name: Record prod release
+        env:
+          IMAGE: ${{ steps.release.outputs.image }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tag="prod-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git tag -a "$tag" "$RELEASE_SHA" \
+            -m "Production deployment of $RELEASE_SHA" -m "Image: $IMAGE"
+          git push origin "refs/tags/$tag"
+
+  rebuild:
+    name: "Refresh tagged ${{ matrix.environment }} release"
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+       (inputs.environment == 'dev-rebuild' || inputs.environment == 'prod-rebuild'))
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, prod]
     runs-on: ubuntu-latest-8-cores
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v7
-      - name: Build and push
-        id: docker-build-push
+        if: github.event_name == 'schedule' || inputs.environment == format('{0}-rebuild', matrix.environment)
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Resolve last deployed release
+        if: github.event_name == 'schedule' || inputs.environment == format('{0}-rebuild', matrix.environment)
+        id: release
+        env:
+          RELEASE_MODE: rebuild
+          ENVIRONMENT: ${{ matrix.environment }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: bash .github/scripts/resolve-release.sh
+      - name: Build with fresh base images
+        if: steps.release.outputs.sha != ''
+        id: image
         uses: nais/docker-build-push@v0
+        env:
+          GIT_SHA: ${{ steps.release.outputs.sha }}
         with:
           team: team-researchops
           identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
           project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
+          pull: true
+          no_cache: true
           build_args: CI=true
-      - name: Show image for later prod deploy
-        run: |
-          echo "========================================"
-          echo "image=${{ steps.docker-build-push.outputs.image }}"
-          echo "========================================"
-
-    outputs:
-      image: ${{ steps.docker-build-push.outputs.image }}
-
-  deploy-application-dev:
-    needs: [test, docker]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v7
-      - name: Deploy application to Dev
+      - name: Deploy refreshed release
+        if: steps.release.outputs.sha != ''
         uses: nais/deploy/actions/deploy@v3
         env:
-          CLUSTER: dev-gcp
-          RESOURCE: .nais/nais-dev.yaml
-          VAR: image=${{ needs.docker.outputs.image }}
+          CLUSTER: ${{ matrix.environment }}-gcp
+          RESOURCE: .nais/nais-${{ matrix.environment }}.yaml
+          VAR: image=${{ steps.image.outputs.image }}

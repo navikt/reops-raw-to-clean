@@ -117,7 +117,39 @@ docker compose -f .compose/docker-compose.yaml up -d
 
 Then start each service with `--args='--spring.profiles.active=local'` in its own terminal.
 
-## Build
+## Deployments
+
+`.github/workflows/ci.yaml` builds and tests pull requests and is reused for
+pushes to `main`. `.github/workflows/deploy.yaml` handles all deployments:
+
+| Trigger | Behaviour |
+|---|---|
+| Push to `main` | Build and test, deploy to dev, then create an annotated `dev-*` tag containing the image reference. |
+| Manual `dev` | Without `release_tag`, build and deploy the selected ref. With a previous `dev-*` tag supplied, select `main` and redeploy that tag's recorded image without rebuilding. Does not create a release tag. |
+| Manual `prod` (select `main`) | Promote the image recorded in the latest `dev-*` tag, without rebuilding. Optionally supply `release_tag` with a previous `dev-*` or `prod-*` tag instead. Use the manifest from that release and create a new `prod-*` tag after deployment. |
+| Daily at 04:23 UTC | Rebuild the latest `dev-*` and `prod-*` commits with fresh base images and no build cache, then deploy to their respective environments. Never use unreleased `main` code. |
+| Manual `dev-rebuild` / `prod-rebuild` (select `main`) | Refresh the latest tagged release for that environment, or supply `release_tag` to rebuild a previous matching `dev-*` / `prod-*` tag. |
+
+Refreshes do not move or create release tags. Scheduled refreshes skip environments
+without release tags; manual refreshes fail with instructions to deploy first.
+An existing prod deployment needs its first tagged promotion before automatic
+refresh can start. Manual dev deployments are not release candidates: the next
+refresh restores the latest tagged dev release.
+
+For a prod rollback, run `Deploy` from `main`, choose `prod`, and set
+`release_tag` to the desired previous `prod-*` tag. Its recorded image is deployed
+and a new prod release tag is created, so subsequent automatic refreshes retain
+the rolled-back code. A rebuild of an older tag does not create a new release;
+the next scheduled refresh still follows the latest deployment tag.
+
+Deployment runs share one concurrency group and do not cancel active runs.
+Automatic refreshes skip tests because release tags refer to already-tested code.
+Base-image changes can still introduce runtime regressions.
+
+To rebuild locally and scan the final image for CVEs, run `./verify-cve.sh`
+(requires Docker, Grype, and enough memory for the native build).
+
+## Build commands
 
 ```bash
 ./gradlew build        # compile + test
