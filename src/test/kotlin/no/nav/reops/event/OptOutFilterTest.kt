@@ -29,6 +29,19 @@ class OptOutFilterTest {
     }
 
     @Test
+    fun `parseHeader parses name alone and with uuid in CSV and JSON arrays`() {
+        assertEquals(listOf(OptOutFilter.NAME), OptOutFilter.parseHeader("name"))
+        assertEquals(listOf(OptOutFilter.NAME, OptOutFilter.UUID), OptOutFilter.parseHeader(" NAME , UUID, unknown, name "))
+        assertEquals(listOf(OptOutFilter.UUID, OptOutFilter.NAME), OptOutFilter.parseHeader("""["Uuid", "NAME", "unknown", "name"]"""))
+    }
+
+    @Test
+    fun `parseHeader applies length limit before ignoring or deduplicating name tokens`() {
+        assertEquals(listOf(OptOutFilter.NAME), OptOutFilter.parseHeader("name," + "x".repeat(45)))
+        assertThrows<IllegalArgumentException> { OptOutFilter.parseHeader("name," + "x".repeat(46)) }
+    }
+
+    @Test
     fun `parseHeader is case insensitive`() {
         val result = OptOutFilter.parseHeader("UUID")
         assertEquals(listOf(OptOutFilter.UUID), result)
@@ -78,4 +91,3 @@ class OptOutFilterTest {
         assertNull(OptOutFilter.parseHeader(value))
     }
 }
-

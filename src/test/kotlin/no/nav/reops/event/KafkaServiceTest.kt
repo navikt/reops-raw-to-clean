@@ -184,6 +184,30 @@ class KafkaServiceTest {
         )
     }
 
+    @Test
+    fun `eventListen applies name header per event and removes it from output headers`() {
+        val service = KafkaService(FilterService(meterRegistry), kafkaTemplate, "test-output-topic", meterRegistry)
+        val event = sampleEvent(name = "Ola Nordmann").let {
+            it.copy(payload = it.payload.copy(title = "Ola.Nordmann@example.com"))
+        }
+        whenever(kafkaTemplate.send(any<ProducerRecord<String, Event>>()))
+            .thenReturn(CompletableFuture.completedFuture(mock<SendResult<String, Event>>()))
+
+        val header = """["NAME", "unknown"]"""
+        val optedOutRecord = consumerRecord("key", event)
+        optedOutRecord.headers().add(OPT_OUT_FILTERS, header.toByteArray())
+        service.eventListen(event, "key", null, header, null, optedOutRecord)
+        service.eventListen(event, "key", null, null, null, consumerRecord("key", event))
+
+        val sent = argumentCaptor<ProducerRecord<String, Event>>()
+        verify(kafkaTemplate, times(2)).send(sent.capture())
+        assertThat(sent.firstValue.value().payload.name).isEqualTo("Ola Nordmann")
+        assertThat(sent.firstValue.value().payload.title).isEqualTo("[PROXY-EMAIL]")
+        assertThat(sent.firstValue.headers().lastHeader(OPT_OUT_FILTERS)).isNull()
+        assertThat(sent.secondValue.value().payload.name).isEqualTo("[PROXY-NAME]")
+        assertThat(sent.secondValue.value().payload.title).isEqualTo("[PROXY-EMAIL]")
+    }
+
     private fun consumerRecord(key: String, value: Event): ConsumerRecord<String, Event> = ConsumerRecord(
         "topic", 0, 0L, 0L, TimestampType.CREATE_TIME, 0, 0, key, value, RecordHeaders(), Optional.empty()
     )

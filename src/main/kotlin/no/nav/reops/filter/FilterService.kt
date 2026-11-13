@@ -38,7 +38,8 @@ class FilterService(meterRegistry: MeterRegistry) {
 
     private companion object {
         private val OPT_OUT_LABEL_MAP: Map<OptOutFilter, String> = mapOf(
-            OptOutFilter.UUID to "PROXY-UUID"
+            OptOutFilter.UUID to "PROXY-UUID",
+            OptOutFilter.NAME to "PROXY-NAME"
         )
 
         private fun List<OptOutFilter>?.toExcludedLabels(): Set<String> =
