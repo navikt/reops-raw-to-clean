@@ -136,7 +136,7 @@ class FilterServiceUrlPolicyTest {
         val base = TestEventFactory.minimalEvent()
         val event = base.copy(
             type = "event",
-            payload = base.payload.copy(url = "/api/data?path=/var/log/app.log&ssn=12345678910&redirect=/home/user/file.pdf")
+            payload = base.payload.copy(url = "/api/data?path=/var/log/app.log&ssn=15819010029&redirect=/home/user/file.pdf")
         )
 
         val out = service.filterEvent(event)

@@ -20,8 +20,8 @@ class FilterServiceExcludeFiltersTest {
                     mapOf(
                         "komponent" to "header",
                         "lenketekst" to "some link text",
-                        "skjemanavn" to "Sykepenger - Journalnotat fra lege - 12345678901",
-                        "valg" to "Oppfølging - Sak FNR:12345678901"
+                        "skjemanavn" to "Sykepenger - Journalnotat fra lege - 15819010029",
+                        "valg" to "Oppfølging - Sak FNR:15819010029"
                     )
                 )
             )
@@ -50,7 +50,7 @@ class FilterServiceExcludeFiltersTest {
                 data = TestEventFactory.jsonNode(
                     mapOf(
                         "komponent" to mapOf(
-                            "inner" to "contains 12345678901 fnr"
+                            "inner" to "contains 15819010029 fnr"
                         )
                     )
                 )

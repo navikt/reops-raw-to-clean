@@ -29,7 +29,7 @@ class FilterServiceStructuralTransformsTest {
                         "device_id" to "device-123",
 
                         "user_email" to "john.doe@example.com",
-                        "user_ssn" to "12345678910",
+                        "user_ssn" to "15819010029",
                         "phone" to "98765432",
                         "navident" to "X123456",
 

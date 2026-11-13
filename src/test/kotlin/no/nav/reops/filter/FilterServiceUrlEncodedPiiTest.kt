@@ -95,7 +95,7 @@ class FilterServiceUrlEncodedPiiTest {
         val service = filterService()
         val base = TestEventFactory.minimalEvent()
         val cases = listOf(
-            "/finn?person=123456%2078901" to "/finn?person=[PROXY-FNR]",
+            "/finn?person=158190%2010029" to "/finn?person=[PROXY-FNR]",
             "/finn?telefon=987%2065%20432" to "/finn?telefon=[PROXY-PHONE]",
             "/finn?telefon=%2B47+987+65+432" to "/finn?telefon=[PROXY-PHONE]",
             "/finn?adresse=Fantasigata+15+A%2C+1234+Ingenstedsby" to "/finn?adresse=[PROXY-ADDRESS]"
