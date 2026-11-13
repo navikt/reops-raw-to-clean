@@ -67,6 +67,13 @@ my-key:{"type":"visit","payload":{"website":"550e8400-e29b-41d4-a716-44665544000
 ```
 
 Optional Kafka headers: `user-agent`, `x-forwarded-for`, `x-opt-out-filters`.
+The `x-opt-out-filters` header accepts `name` and `uuid` as comma-separated values
+or a JSON-style array, for example `name,uuid` or `["name","uuid"]`. Values are
+case-insensitive, unknown values are ignored, and the header is limited to 50
+characters. The opt-out applies only to the current event and is removed from the
+output headers. Name redaction is enabled by default. Opting out of `name` disables
+only the name rule; other rules can still redact overlapping text, including email
+addresses, postal addresses and search queries.
 
 ### Verify output
 

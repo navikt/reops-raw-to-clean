@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonValue
 private const val MAX_HEADER_LENGTH = 50
 
 enum class OptOutFilter(@get:JsonValue val value: String) {
-    UUID("uuid");
+    UUID("uuid"),
+    NAME("name");
 
     companion object {
         private val byValue = entries.associateBy { it.value.lowercase() }
@@ -31,4 +32,3 @@ enum class OptOutFilter(@get:JsonValue val value: String) {
         }
     }
 }
-

@@ -2,6 +2,7 @@ package no.nav.reops
 
 import no.nav.reops.event.Event
 import no.nav.reops.event.FORWARDED_FOR
+import no.nav.reops.event.OPT_OUT_FILTERS
 import no.nav.reops.event.USER_AGENT
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -142,6 +143,29 @@ class EndeTilEndeTest {
             assertThat(body).contains("\"hest\"")
             assertThat(body).contains("\"antall\"")
             assertThat(body).contains("\"liker-hest\"")
+        }
+    }
+
+    @Test
+    fun `name opt out header is applied on the Kafka consumer path`() {
+        val key = UUID.randomUUID().toString()
+        val event = Event(type = "visit", payload = Event.Payload(
+            website = UUID.randomUUID(), name = "Ola Nordmann", title = "Ola.Nordmann@example.com"
+        ))
+        val message = MessageBuilder.withPayload(event)
+            .setHeader(KafkaHeaders.TOPIC, "test-topic")
+            .setHeader(KafkaHeaders.KEY, key)
+            .setHeader(OPT_OUT_FILTERS, "name")
+            .build()
+        kafkaTemplate.send(message).get()
+
+        await().atMost(Duration.ofSeconds(10)).untilAsserted {
+            val records = KafkaTestUtils.getRecords(outputConsumer, Duration.ofSeconds(1))
+            val record = records.firstOrNull { it.key() == key }
+            assertThat(record).isNotNull
+            assertThat(record!!.value()).contains("Ola Nordmann", "[PROXY-EMAIL]")
+                .doesNotContain("Ola.Nordmann@example.com", "[PROXY-NAME]")
+            assertThat(record.headers().lastHeader(OPT_OUT_FILTERS)).isNull()
         }
     }
 }

@@ -11,6 +11,12 @@ class EventSerializationTest {
     private val mapper = jacksonObjectMapper()
 
     @Test
+    fun `opt out filters serialize using their wire values`() {
+        assertEquals("\"name\"", mapper.writeValueAsString(OptOutFilter.NAME))
+        assertEquals("[\"uuid\",\"name\"]", mapper.writeValueAsString(listOf(OptOutFilter.UUID, OptOutFilter.NAME)))
+    }
+
+    @Test
     fun `event payload omits id when null`() {
         val event = Event(
             type = "visit",

@@ -128,6 +128,14 @@ Query strings are treated as user input and are fully sanitized.
 
 These rules apply to all string values unless explicitly excluded (e.g. URL path-part excludes `PROXY-FILEPATH`).
 
+For a single event, the Kafka `x-opt-out-filters` header can disable the `name` or
+`uuid` rule, or both. Values are case-insensitive and can be comma-separated or
+in a JSON-style array; unknown values are ignored and the header is limited to 50
+characters. Name redaction is enabled by default. Unlike UUID opt-out, name opt-out
+does not shield matching spans from other rules: an overlapping email, address or
+search query can still be redacted. Structural and URL policies remain in effect.
+URL query strings are decoded before filtering, including when names are opted out.
+
 | Rule                | Label                  | Detects                                        | Output                   |
 |---------------------|------------------------|------------------------------------------------|--------------------------|
 | UUID                | `PROXY-UUID`           | UUIDs (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | `[PROXY-UUID]`           |
