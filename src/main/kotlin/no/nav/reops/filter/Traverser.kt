@@ -23,13 +23,15 @@ internal class Traverser(
         else -> node
     }
 
+    // JSON numbers lose leading zeros, so a 10-digit number may be an fnr born on day 01-09
     private fun redactIfFnrNumber(node: JsonNode): JsonNode {
         val longVal = node.asLong()
-        return if (longVal in 10_000_000_000..99_999_999_999) {
-            JsonNodeFactory.instance.stringNode("[PROXY-FNR]")
-        } else {
-            node
+        val digits = when (longVal) {
+            in 10_000_000_000..99_999_999_999 -> longVal.toString()
+            in 1_000_000_000..9_999_999_999 -> "0$longVal"
+            else -> return node
         }
+        return if (Fnr.isValid(digits)) JsonNodeFactory.instance.stringNode("[PROXY-FNR]") else node
     }
 
     private fun transformString(raw: String, ctx: NodeContext): String {

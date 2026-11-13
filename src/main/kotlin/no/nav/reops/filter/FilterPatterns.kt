@@ -3,7 +3,22 @@ package no.nav.reops.filter
 internal object FilterPatterns {
     val KEEP_REGEX = Regex("((nav|test)[0-9]{6})")
 
-    val FNR_REGEX = Regex("(?<!\\d)\\d{6}[ -]?\\d{5}(?!\\d)")
+    // 11 digits: DDMMYYxxxxx, DDMMYY xxxxx / -xxxxx / .xxxxx, or DD.MM.YY xxxxx / .xxxxx
+    private const val FNR_DIGITS = "(?:\\d{2}\\.\\d{2}\\.\\d{2}[ .]\\d{5}|\\d{6}[ .-]?\\d{5})"
+    private const val FNR_CONTEXT_WORDS =
+        "fnr|f\\.nr|fødselsnr|fødselsnummer|fødselsnummeret|fodselsnr|fodselsnummer|d-?nr|d-?nummer|d-?nummeret" +
+            "|personnr|personnummer|personnummeret"
+
+    // No letters or digits directly around the number, so digit runs inside hex strings and IDs are left alone.
+    // Matches are only masked if Fnr.isValid accepts them.
+    val FNR_REGEX = Regex("(?<![\\p{L}\\d])$FNR_DIGITS(?![\\p{L}\\d])")
+
+    // Directly after a context word (e.g. "fnr: ", "fødselsnummer=", "fnr01019012345") the number is masked
+    // even if it is glued to the word or fails validation (typos). Only the number is matched.
+    // The cheap digit checks come first so the lookbehind only runs where a digit run starts.
+    val FNR_CONTEXT_REGEX = Regex(
+        "(?<!\\d)(?=\\d{2})(?<=(?<![\\p{L}\\d])(?iu:$FNR_CONTEXT_WORDS)[\\s:=#._/|+@()\\[\\]{}-]{0,3})$FNR_DIGITS(?!\\d)"
+    )
     val NAVIDENT_REGEX = Regex("(?<![a-zA-Z0-9])[a-zA-Z]\\d{6}(?!\\d)")
     val EMAIL_REGEX = Regex("(?:mailto:)?[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
     val IP_REGEX = Regex("(?<!\\d)\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)")

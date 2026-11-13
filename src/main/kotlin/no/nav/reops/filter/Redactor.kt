@@ -23,9 +23,7 @@ internal class Redactor(
         // 1) Optionally preserve URL-like substrings in free-text
         val preservedUrls = PlaceholderStore(prefix = "__PRESERVED_URL_", suffix = "__")
         if (preserveUrls) {
-            result = preservedUrls.preserveAll(result, FilterPatterns.URL_REGEX) { url ->
-                FilterPatterns.FNR_REGEX.replace(url) { "[PROXY-FNR]" }
-            }
+            result = preservedUrls.preserveAll(result, FilterPatterns.URL_REGEX) { url -> Fnr.redact(url) }
         }
 
         // 2) Apply rules (same order, same checks)
@@ -33,10 +31,26 @@ internal class Redactor(
             if (rule.label in allExcluded && !rule.alwaysEnforced) continue
             if (!rule.regex.containsMatchIn(result)) continue
 
-            rule.counter.increment()
-
-            if (!rule.preserve) {
-                result = rule.regex.replace(result) { "[${rule.label}]" }
+            val validator = rule.validator
+            if (validator == null) {
+                rule.counter.increment()
+                if (!rule.preserve) {
+                    result = rule.regex.replace(result) { "[${rule.label}]" }
+                }
+            } else if (!rule.preserve) {
+                var matched = false
+                val replaced = rule.regex.replace(result) { m ->
+                    if (validator(m.value)) {
+                        matched = true
+                        "[${rule.label}]"
+                    } else {
+                        m.value
+                    }
+                }
+                if (matched) {
+                    rule.counter.increment()
+                    result = replaced
+                }
             }
         }
 
