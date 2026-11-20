@@ -16,16 +16,21 @@ internal class Traverser(
     private fun transformNode(node: JsonNode, ctx: NodeContext): JsonNode = when {
         node.isNull -> node
         node.isString -> JsonNodeFactory.instance.stringNode(transformString(node.asString(), ctx))
-        node.isIntegralNumber -> redactIfFnrNumber(node)
+        node.isNumber -> redactIfFnrNumber(node)
         node.isBoolean -> node
         node.isObject -> transformObject(node as ObjectNode, ctx)
         node.isArray -> transformArray(node as ArrayNode, ctx)
         else -> node
     }
 
+    // JSON numbers lose leading zeros, so a 10-digit number may be an fnr born on day 01-09
     private fun redactIfFnrNumber(node: JsonNode): JsonNode {
-        val digits = node.asString()
-        if (digits.length != 11 || digits.any { it !in '0'..'9' }) return node
+        val longVal = node.asLong()
+        val digits = when (longVal) {
+            in 10_000_000_000..99_999_999_999 -> longVal.toString()
+            in 1_000_000_000..9_999_999_999 -> "0$longVal"
+            else -> return node
+        }
         return if (Fnr.isValid(digits)) JsonNodeFactory.instance.stringNode("[PROXY-FNR]") else node
     }
 

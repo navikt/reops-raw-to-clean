@@ -133,7 +133,7 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
 | UUID                | `PROXY-UUID`           | UUIDs (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | `[PROXY-UUID]`           |
 | File path (high-confidence: drive-letter, UNC, `file://`) | `PROXY-FILEPATH` | Filesystem paths that can never be a valid URL path/query | `[PROXY-FILEPATH]` |
 | File path (low-confidence: generic multi-segment paths)   | `PROXY-FILEPATH` | Filesystem paths, ambiguous with real URL routes (excluded from URL path-part, see above) | `[PROXY-FILEPATH]` |
-| National ID (FNR) after context word | `PROXY-FNR`  | Up to 11 ASCII digits on the same line after `fnr`, `f.nr`, `fødselsnr`, `fødselsnummer`, `d-nr`, `d-nummer`, `personnr`, `personnummer`, even when split by non-digits or invalid. Metric tag `fnr_context` | `[PROXY-FNR]` |
+| National ID (FNR) after context word | `PROXY-FNR`  | 11 digits directly after `fnr`, `f.nr`, `fødselsnr`, `fødselsnummer`, `d-nr`, `d-nummer`, `personnr`, `personnummer` (also glued or with invalid check digits). Metric tag `fnr_context` | `[PROXY-FNR]` |
 | National ID (FNR)   | `PROXY-FNR`            | Valid fødselsnummer, d-nummer (day + 40) and synthetic Dolly (month + 40) / Tenor (month + 80) identities. See [FNR validation](#fnr-validation) | `[PROXY-FNR]`            |
 | NAV ident           | `PROXY-NAVIDENT`       | `X123456` format                               | `[PROXY-NAVIDENT]`       |
 | Email               | `PROXY-EMAIL`          | Email addresses                                | `[PROXY-EMAIL]`          |
@@ -154,11 +154,11 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
 - Formats: `ddmmyyxxxxx`, `ddmmyy xxxxx`, `ddmmyy-xxxxx`, `ddmmyy.xxxxx`, `dd.mm.yy xxxxx`, `dd.mm.yy.xxxxx`.
 - No letter or digit may be directly before or after the number, so digit runs inside hex strings,
   longer IDs and words are not treated as fnr.
-- The date must exist (29 February 2000 is valid, but 29 February 1900 is not) and both mod-11 check digits must match.
+- The date must exist (29 February only in years divisible by 4) and both mod-11 check digits must match.
 - Invalid candidates are left unchanged for later rules (e.g. `account`), and are not counted in the
   `fnr` metric.
-- JSON numbers in `payload.data`: only integers represented by exactly 11 ASCII digits are validated.
-  Leading zeroes are not inferred.
+- JSON numbers in `payload.data`: 11-digit numbers are validated as-is; 10-digit numbers are validated
+  with a leading `0` (JSON drops it for people born on day 1–9).
 - `payload.id` and URLs in free text use the same logic (context word or valid fnr).
 - Only today's check-digit rule is supported. Numbers issued from 1 January 2032 accept more values for
   the first check digit and must be added before then

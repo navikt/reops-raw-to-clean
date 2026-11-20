@@ -91,8 +91,7 @@ internal data class RedactionRule(
     val alwaysEnforced: Boolean = false,
     // When set, a match is only replaced if the validator accepts it; rejected matches are left
     // for later rules and are not counted.
-    val validator: ((String) -> Boolean)? = null,
-    val replacementPrefixGroup: Int? = null
+    val validator: ((String) -> Boolean)? = null
 )
 
 internal object RuleSetFactory {
@@ -109,7 +108,7 @@ internal object RuleSetFactory {
         ),
         rule("filepath_low_confidence", "PROXY-FILEPATH", FilterPatterns.FILEPATH_LOW_CONFIDENCE_REGEX, meterRegistry),
         // Context first: after e.g. "fnr:" the number is masked even if it fails validation.
-        rule("fnr_context", "PROXY-FNR", FilterPatterns.FNR_CONTEXT_REGEX, meterRegistry, replacementPrefixGroup = 1),
+        rule("fnr_context", "PROXY-FNR", FilterPatterns.FNR_CONTEXT_REGEX, meterRegistry),
         rule("fnr", "PROXY-FNR", FilterPatterns.FNR_REGEX, meterRegistry, validator = Fnr::isValid),
         rule("navident", "PROXY-NAVIDENT", FilterPatterns.NAVIDENT_REGEX, meterRegistry),
         rule("email", "PROXY-EMAIL", FilterPatterns.EMAIL_REGEX, meterRegistry),
@@ -139,8 +138,7 @@ internal object RuleSetFactory {
         meterRegistry: MeterRegistry,
         sanctioned: Boolean = false,
         alwaysEnforced: Boolean = false,
-        validator: ((String) -> Boolean)? = null,
-        replacementPrefixGroup: Int? = null
+        validator: ((String) -> Boolean)? = null
     ): RedactionRule = RedactionRule(
         name = name,
         label = label,
@@ -149,8 +147,7 @@ internal object RuleSetFactory {
         preserve = false,
         sanctioned = sanctioned,
         alwaysEnforced = alwaysEnforced,
-        validator = validator,
-        replacementPrefixGroup = replacementPrefixGroup
+        validator = validator
     )
 
     private fun counter(meterRegistry: MeterRegistry, ruleName: String): Counter =
