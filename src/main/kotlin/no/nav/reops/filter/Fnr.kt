@@ -15,6 +15,8 @@ internal object Fnr {
     private val K1_WEIGHTS = intArrayOf(3, 7, 6, 1, 8, 9, 4, 5, 2)
     private val K2_WEIGHTS = intArrayOf(5, 4, 3, 2, 7, 6, 5, 4, 3, 2)
     private val DAYS_IN_MONTH = intArrayOf(31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+    private val MATCH = Regex("${FilterPatterns.FNR_CONTEXT_REGEX.pattern}|${FilterPatterns.FNR_REGEX.pattern}")
+    private val URL_ESCAPE = Regex("%[0-9a-fA-F]{2}")
 
     /** [candidate] may contain separators (space, dash, dot); only the digits are validated. */
     fun isValid(candidate: String): Boolean {
@@ -29,9 +31,45 @@ internal object Fnr {
     }
 
     /** Masks fnr after a context word (also invalid ones) and valid fnr elsewhere. */
-    fun redact(text: String): String {
-        val withContext = FilterPatterns.FNR_CONTEXT_REGEX.replace(text, Regex.escapeReplacement(LABEL))
-        return FilterPatterns.FNR_REGEX.replace(withContext) { m -> if (isValid(m.value)) LABEL else m.value }
+    fun redact(text: String): String = replaceMatches(text, text) { it }
+
+    fun redactUrl(url: String): String {
+        if ('%' !in url) return redact(url)
+
+        // Match against decoded ASCII escapes, while mapping replacements back to the original URL.
+        val offsets = IntArray(url.length + 1)
+        val decoded = StringBuilder(url.length)
+        var index = 0
+        for (escape in URL_ESCAPE.findAll(url)) {
+            while (index < escape.range.first) {
+                offsets[decoded.length] = index
+                decoded.append(url[index++])
+            }
+            offsets[decoded.length] = index
+            val byte = escape.value.substring(1).toInt(16)
+            // Treat non-ASCII bytes as opaque letters, not as separators inside encoded words.
+            decoded.append(if (byte < 128) byte.toChar() else '\u00AA')
+            index += 3
+        }
+        while (index < url.length) {
+            offsets[decoded.length] = index
+            decoded.append(url[index++])
+        }
+        offsets[decoded.length] = url.length
+        return replaceMatches(url, decoded) { offsets[it] }
+    }
+
+    private fun replaceMatches(original: String, view: CharSequence, offset: (Int) -> Int): String = buildString {
+        var copied = 0
+        for (match in MATCH.findAll(view)) {
+            val prefix = match.groups[1]
+            if (prefix == null && !isValid(match.value)) continue
+            val start = match.range.first + (prefix?.value?.length ?: 0)
+            append(original, copied, offset(start))
+            append(LABEL)
+            copied = offset(match.range.last + 1)
+        }
+        append(original, copied, original.length)
     }
 
     private fun hasValidDate(d: IntArray): Boolean {
@@ -40,7 +78,7 @@ internal object Fnr {
         val year = d[4] * 10 + d[5]
         if (day > 40) day -= 40
         if (month > 80) month -= 80 else if (month > 40) month -= 40
-        if (month == 2 && day == 29) return year % 4 == 0
+        if (month == 2 && day == 29) return year % 4 == 0 && (year != 0 || d[6] >= 5)
         return month in 1..12 && day in 1..DAYS_IN_MONTH[month - 1]
     }
 

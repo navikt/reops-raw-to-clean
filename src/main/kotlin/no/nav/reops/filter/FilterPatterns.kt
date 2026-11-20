@@ -13,11 +13,11 @@ internal object FilterPatterns {
     // Matches are only masked if Fnr.isValid accepts them.
     val FNR_REGEX = Regex("(?<![\\p{L}\\d])$FNR_DIGITS(?![\\p{L}\\d])")
 
-    // Directly after a context word (e.g. "fnr: ", "fødselsnummer=", "fnr01019012345") the number is masked
-    // even if it is glued to the word or fails validation (typos). Only the number is matched.
-    // The cheap digit checks come first so the lookbehind only runs where a digit run starts.
+    // Keep the prefix, and never scan across line breaks or spans protected by the redactor.
+    private const val FNR_GAP = "(?!\\R|__PRESERVED_URL_|__SANCTIONED_|\\[PROXY-)[^0-9]"
+    private const val FNR_PREFIX = "(?<![\\p{L}0-9])(?iu:$FNR_CONTEXT_WORDS)(?!\\p{L})"
     val FNR_CONTEXT_REGEX = Regex(
-        "(?<!\\d)(?=\\d{2})(?<=(?<![\\p{L}\\d])(?iu:$FNR_CONTEXT_WORDS)[\\s:=#._/|+@()\\[\\]{}-]{0,3})$FNR_DIGITS(?!\\d)"
+        "($FNR_PREFIX(?:(?!$FNR_PREFIX)$FNR_GAP)*+)[0-9](?:(?:$FNR_GAP)*+[0-9]){0,10}"
     )
     val NAVIDENT_REGEX = Regex("(?<![a-zA-Z0-9])[a-zA-Z]\\d{6}(?!\\d)")
     val EMAIL_REGEX = Regex("(?:mailto:)?[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
@@ -85,9 +85,9 @@ internal object FilterPatterns {
     val URL_REGEX = Regex(
         pattern = """(?x)
             (?:
-                https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[A-Za-z0-9._\-/@%&=]*)?
+                https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[\p{L}\p{M}0-9._\-/@%&=]*)?
                 |
-                (?<![A-Za-z0-9._%+\-@])[A-Za-z0-9._\-]+\.[A-Za-z]{2,}/[A-Za-z0-9._\-/@%&=]+
+                (?<![A-Za-z0-9._%+\-@])[A-Za-z0-9._\-]+\.[A-Za-z]{2,}/[\p{L}\p{M}0-9._\-/@%&=]+
             )
         """.trimIndent(), options = setOf(RegexOption.COMMENTS)
     )

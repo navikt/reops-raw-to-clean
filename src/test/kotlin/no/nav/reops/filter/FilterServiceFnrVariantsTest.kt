@@ -127,6 +127,28 @@ class FilterServiceFnrVariantsTest {
     }
 
     @Test
+    fun `redacts fnr next to encoded url separators without rewriting the url`() {
+        assertEquals(
+            "See https://nav.no/person%2F[PROXY-FNR]%2fdetails",
+            redact("See https://nav.no/person%2F15819010029%2fdetails")
+        )
+        val embedded = "https://nav.no/person/%4115819010029/details"
+        assertEquals(embedded, redact(embedded))
+    }
+
+    @Test
+    fun `redacts after a unicode context word in preserved urls`() {
+        assertEquals(
+            "Se https://nav.no/fødselsnummer/[PROXY-FNR]",
+            redact("Se https://nav.no/fødselsnummer/158190-10028")
+        )
+        assertEquals(
+            "Se nav.no/fødselsnummer/[PROXY-FNR]",
+            redact("Se nav.no/fødselsnummer/158190-10028")
+        )
+    }
+
+    @Test
     fun `redacts fnr inside domain path url in free text`() {
         val input = "Link: example.com/user/15819010029/profile"
         assertEquals("Link: example.com/user/[PROXY-FNR]/profile", redact(input))
@@ -224,6 +246,16 @@ class FilterServiceFnrVariantsTest {
     }
 
     @Test
+    fun `context word accepts padding and arbitrary separators without crossing lines`() {
+        assertEquals("fnr:   [PROXY-FNR]", redact("fnr:   158190 10028"))
+        assertEquals("fnr (~> [PROXY-FNR])", redact("fnr (~> 1_58-19 / 0.1x00~28)"))
+        assertEquals("fnr:   \n158190 10028", redact("fnr:   \n158190 10028"))
+        assertEquals("fnr: [PROXY-FNR]\n10028", redact("fnr: 158190\n10028"))
+        assertEquals("fnr: fnr: [PROXY-FNR]", redact("fnr: fnr: 158190 10028"))
+        assertEquals("fnr: https://nav.no/info", redact("fnr: https://nav.no/info"))
+    }
+
+    @Test
     fun `context word masks fnr glued to the word`() {
         assertEquals("fnr[PROXY-FNR]", redact("fnr12345678901"))
     }
@@ -235,8 +267,8 @@ class FilterServiceFnrVariantsTest {
     }
 
     @Test
-    fun `context word does not mask longer digit runs`() {
-        assertEquals("fnr 123456789012", redact("fnr 123456789012"))
+    fun `context word masks at most eleven digits`() {
+        assertEquals("fnr [PROXY-FNR]2", redact("fnr 123456789012"))
     }
 
     @Test
@@ -254,7 +286,7 @@ class FilterServiceFnrVariantsTest {
     }
 
     @Test
-    fun `redacts 10-digit json number that lost its leading zero`() {
+    fun `does not infer leading zeros for json numbers`() {
         val service = filterService()
         val base = TestEventFactory.minimalEvent()
         val event = base.copy(
@@ -262,7 +294,9 @@ class FilterServiceFnrVariantsTest {
                 data = TestEventFactory.jsonNode(mapOf("kandidatnr" to 3859510034L))
             )
         )
-        assertEquals("[PROXY-FNR]", service.filterEvent(event).payload.data!!.get("kandidatnr").asString())
+        val value = service.filterEvent(event).payload.data!!.get("kandidatnr")
+        assertEquals(true, value.isIntegralNumber)
+        assertEquals(3859510034L, value.asLong())
     }
 
     @Test
@@ -272,14 +306,23 @@ class FilterServiceFnrVariantsTest {
         val event = base.copy(
             type = "event", payload = base.payload.copy(
                 data = TestEventFactory.jsonNode(
-                    mapOf("ordre" to 15819010028L, "epochSeconds" to 1700000000L, "epochMs" to 1700000000000L)
+                    mapOf(
+                        "ordre" to 15819010028L,
+                        "epochSeconds" to 1811808004L,
+                        "epochMs" to 1700000000000L,
+                        "decimal" to 15819010029.5,
+                        "negative" to -15819010029L
+                    )
                 )
             )
         )
         val data = service.filterEvent(event).payload.data!!
         assertEquals(15819010028L, data.get("ordre").asLong())
-        assertEquals(1700000000L, data.get("epochSeconds").asLong())
+        assertEquals(true, data.get("epochSeconds").isIntegralNumber)
+        assertEquals(1811808004L, data.get("epochSeconds").asLong())
         assertEquals(1700000000000L, data.get("epochMs").asLong())
+        assertEquals(15819010029.5, data.get("decimal").asDouble())
+        assertEquals(-15819010029L, data.get("negative").asLong())
     }
 
     @Test
