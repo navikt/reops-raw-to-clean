@@ -35,7 +35,12 @@ internal class Redactor(
             if (validator == null) {
                 rule.counter.increment()
                 if (!rule.preserve) {
-                    result = rule.regex.replace(result) { "[${rule.label}]" }
+                    val group = rule.maskGroup
+                    result = if (group == null) {
+                        rule.regex.replace(result) { "[${rule.label}]" }
+                    } else {
+                        rule.regex.replace(result) { m -> m.replaceGroup(group, "[${rule.label}]") }
+                    }
                 }
             } else if (!rule.preserve) {
                 var matched = false
@@ -98,4 +103,11 @@ internal class Redactor(
 
         private fun placeholder(i: Int): String = "$prefix${i}$suffix"
     }
+}
+
+internal fun MatchResult.replaceGroup(name: String, replacement: String): String {
+    val g = groups[name] ?: return replacement
+    val from = g.range.first - range.first
+    val to = g.range.last + 1 - range.first
+    return value.substring(0, from) + replacement + value.substring(to)
 }

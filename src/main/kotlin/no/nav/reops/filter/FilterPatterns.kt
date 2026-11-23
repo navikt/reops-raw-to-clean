@@ -13,11 +13,13 @@ internal object FilterPatterns {
     // Matches are only masked if Fnr.isValid accepts them.
     val FNR_REGEX = Regex("(?<![\\p{L}\\d])$FNR_DIGITS(?![\\p{L}\\d])")
 
-    // Directly after a context word (e.g. "fnr: ", "fødselsnummer=", "fnr01019012345") the number is masked
-    // even if it is glued to the word or fails validation (typos). Only the number is matched.
-    // The cheap digit checks come first so the lookbehind only runs where a digit run starts.
+    // After a context word (e.g. "fnr: ", "fødselsnummer=", "fnr01019012345") everything that looks like the
+    // number is masked, even if it is glued to the word, fails validation or is longer than 11 digits.
+    // The match runs from the first digit to the last digit before the first letter or line break;
+    // group "num" is the span that is replaced, so the word and its separators are kept.
     val FNR_CONTEXT_REGEX = Regex(
-        "(?<!\\d)(?=\\d{2})(?<=(?<![\\p{L}\\d])(?iu:$FNR_CONTEXT_WORDS)[\\s:=#._/|+@()\\[\\]{}-]{0,3})$FNR_DIGITS(?!\\d)"
+        "(?<![\\p{L}\\d])(?iu:$FNR_CONTEXT_WORDS)(?:[ \\t]*[:=#._/|+@()\\[\\]{}-]){0,3}[ \\t]*" +
+            "(?<num>\\d(?:[^\\p{L}\\r\\n]*\\d)?)"
     )
     val NAVIDENT_REGEX = Regex("(?<![a-zA-Z0-9])[a-zA-Z]\\d{6}(?!\\d)")
     val EMAIL_REGEX = Regex("(?:mailto:)?[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")

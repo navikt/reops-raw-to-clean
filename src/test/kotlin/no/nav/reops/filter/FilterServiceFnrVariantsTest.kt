@@ -236,8 +236,32 @@ class FilterServiceFnrVariantsTest {
     }
 
     @Test
-    fun `context word does not mask longer digit runs`() {
-        assertEquals("fnr 123456789012", redact("fnr 123456789012"))
+    fun `context word masks all digits on the line, however long`() {
+        assertEquals("fnr [PROXY-FNR]", redact("fnr 123456789012"))
+    }
+
+    @Test
+    fun `context word masks with padding before the number`() {
+        assertEquals("fnr:   [PROXY-FNR]", redact("fnr:   158190 10028"))
+        assertEquals("fnr:\t[PROXY-FNR]", redact("fnr:\t158190 10028"))
+        assertEquals("fødselsnummer : [PROXY-FNR]", redact("fødselsnummer : 12345678901"))
+    }
+
+    @Test
+    fun `context word masks digits split by any non-letter separators`() {
+        assertEquals("fnr: [PROXY-FNR] takk", redact("fnr: 1234_5678/901 takk"))
+        assertEquals("fnr: [PROXY-FNR] takk", redact("fnr: 1234 5678-901 takk"))
+    }
+
+    @Test
+    fun `context word stops at the first letter and keeps trailing punctuation`() {
+        assertEquals("fnr: [PROXY-FNR], tlf [PROXY-PHONE]", redact("fnr: 15819010029, tlf 99887766"))
+    }
+
+    @Test
+    fun `context word does not reach across a line break`() {
+        assertEquals("fnr: [PROXY-FNR]\nsvar 42", redact("fnr: 12345678901\nsvar 42"))
+        assertEquals("fnr:\n12345678901", redact("fnr:\n12345678901").replace("[PROXY-ACCOUNT]", "12345678901"))
     }
 
     @Test

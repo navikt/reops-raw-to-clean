@@ -30,7 +30,7 @@ internal object Fnr {
 
     /** Masks fnr after a context word (also invalid ones) and valid fnr elsewhere. */
     fun redact(text: String): String {
-        val withContext = FilterPatterns.FNR_CONTEXT_REGEX.replace(text, Regex.escapeReplacement(LABEL))
+        val withContext = FilterPatterns.FNR_CONTEXT_REGEX.replace(text) { m -> m.replaceGroup("num", LABEL) }
         return FilterPatterns.FNR_REGEX.replace(withContext) { m -> if (isValid(m.value)) LABEL else m.value }
     }
 
