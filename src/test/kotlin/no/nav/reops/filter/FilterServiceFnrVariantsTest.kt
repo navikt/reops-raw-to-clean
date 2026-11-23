@@ -265,6 +265,22 @@ class FilterServiceFnrVariantsTest {
     }
 
     @Test
+    fun `context word with unicode letters in a free-text url keeps its context`() {
+        assertEquals(
+            "Se https://nav.no/fødselsnummer/[PROXY-FNR] nå",
+            redact("Se https://nav.no/fødselsnummer/158190-10028 nå")
+        )
+        assertEquals(
+            "Se nav.no/fødselsnummer/[PROXY-FNR] nå",
+            redact("Se nav.no/fødselsnummer/158190-10028 nå")
+        )
+        assertEquals(
+            "Se https://nav.no/søk/åpne/[PROXY-FNR]/ære",
+            redact("Se https://nav.no/søk/åpne/15819010029/ære")
+        )
+    }
+
+    @Test
     fun `invalid number in free-text url is not redacted as fnr`() {
         val out = redact("Se https://nav.no/sak/15819010028/info")
         assertFalse(out.contains("[PROXY-FNR]"), out)
