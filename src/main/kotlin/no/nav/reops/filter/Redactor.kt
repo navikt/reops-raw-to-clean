@@ -51,7 +51,13 @@ internal class Redactor(
         if (!isFnrKey(key)) return value
         val rule = rules.firstOrNull { it.name == "fnr_context" } ?: return value
         if (rule.label in globalExcludedLabels) return value
-        return applyRule(rule, "$KEY_PREFIX$value").removePrefix(KEY_PREFIX)
+        // UUIDs are left to the UUID rule: masking their leading digits would break it (or its opt-out)
+        val uuids = FilterPatterns.UUID_REGEX.findAll(value).map { it.value }.toList()
+        var protectedValue = value
+        uuids.forEachIndexed { i, u -> protectedValue = protectedValue.replace(u, "__U${i}__") }
+        var out = applyRule(rule, "$KEY_PREFIX$protectedValue").removePrefix(KEY_PREFIX)
+        uuids.forEachIndexed { i, u -> out = out.replace("__U${i}__", u) }
+        return out
     }
 
     fun isFnrKey(key: String?): Boolean =

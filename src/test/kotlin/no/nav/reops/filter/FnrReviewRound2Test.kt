@@ -124,4 +124,17 @@ class FnrReviewRound2Test {
         assertEquals("?fnr=[PROXY-FNR]&123=456&lang=nb", text("?fnr=15819010029&123=456&lang=nb"))
         assertTrue(text("x?fnr=15819010029#1234").endsWith("[PROXY-FNR]#1234"))
     }
+
+    @Test
+    fun `truncated or malformed escapes do not throw`() {
+        for (s in listOf("%C3", "%E2%82", "x%", "x%4", "%F0%9F%98", "%C3%28", "%zz%C3")) {
+            assertEquals("se https://nav.no/$s", text("se https://nav.no/$s"))
+        }
+    }
+
+    @Test
+    fun `uuid under an fnr key is left to the uuid rule`() {
+        val out = data(mapOf("fnr" to "550e8400-e29b-41d4-a716-446655440000"))
+        assertEquals("[PROXY-UUID]", out["fnr"])
+    }
 }

@@ -62,7 +62,7 @@ internal class DecodedView private constructor(
         }
 
         private fun byteAt(s: String, i: Int): Int {
-            if (s[i] != '%' || i + 2 >= s.length) return -1
+            if (i + 2 >= s.length || s[i] != '%') return -1
             val hi = Character.digit(s[i + 1], 16)
             val lo = Character.digit(s[i + 2], 16)
             return if (hi < 0 || lo < 0) -1 else hi * 16 + lo
