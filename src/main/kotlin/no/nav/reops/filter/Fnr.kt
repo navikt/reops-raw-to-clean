@@ -40,9 +40,14 @@ internal object Fnr {
         val year = d[4] * 10 + d[5]
         if (day > 40) day -= 40
         if (month > 80) month -= 80 else if (month > 40) month -= 40
-        if (month == 2 && day == 29) return year % 4 == 0
+        if (month == 2 && day == 29) return isLeapYear(year, individualNumber = d[6] * 100 + d[7] * 10 + d[8])
         return month in 1..12 && day in 1..DAYS_IN_MONTH[month - 1]
     }
+
+    // The century follows from the individual number: for year 00, 000-499 is 1900 (not a leap year)
+    // and 500-999 is 2000 (a leap year). Other years are leap years when divisible by 4.
+    private fun isLeapYear(year: Int, individualNumber: Int): Boolean =
+        if (year == 0) individualNumber >= 500 else year % 4 == 0
 
     // Returns -1 when the remainder gives check digit 10, which is never issued.
     // TODO before 2032: numbers issued from 1.1.2032 accept remainder 0-3 for K1
