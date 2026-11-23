@@ -162,6 +162,8 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
 - `payload.id` and URLs in free text use the same logic (context word or valid fnr).
   In free-text URLs an escaped separator such as `%2F` counts as a separator, so `/person%2F15819010029` is masked
   and the encoding around the number is left as it was.
+  A space ends a URL in free text, so a number with a space inside (`nav.no/x/158190 10029`) is split and only
+  the part before the space is seen as part of the URL.
 - Only today's check-digit rule is supported. Numbers issued from 1 January 2032 accept more values for
   the first check digit and must be added before then
   ([Skatteetaten](https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/nytt-fodselsnummer-fra-2032/)).
