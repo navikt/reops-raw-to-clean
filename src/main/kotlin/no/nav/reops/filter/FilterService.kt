@@ -23,7 +23,7 @@ class FilterService(meterRegistry: MeterRegistry) {
 
         val sanitized = p.copy(
             website = p.website,
-            id = p.id?.let { FilterPatterns.FNR_REGEX.replace(it) { "[PROXY-FNR]" } },
+            id = p.id?.let { Fnr.redact(it) },
             hostname = p.hostname?.let { urlPolicy.redactUrl(it, redactor) },
             screen = p.screen?.let { urlPolicy.redactUrl(it, redactor) },
             language = p.language?.let { urlPolicy.redactUrl(it, redactor) },
@@ -88,7 +88,15 @@ internal data class RedactionRule(
     // excludedLabels set (e.g. UrlPolicy's pathExcludedLabels). Reserved for rules
     // whose pattern cannot occur in a legitimate URL path/query by construction —
     // see FilterPatterns.FILEPATH_HIGH_CONFIDENCE_REGEX.
-    val alwaysEnforced: Boolean = false
+    val alwaysEnforced: Boolean = false,
+    // When set, a match is only replaced if the validator accepts it; rejected matches are left
+    // for later rules and are not counted.
+    val validator: ((String) -> Boolean)? = null,
+    // When set, only this named group of a match is replaced; the rest of the match is kept.
+    val maskGroup: String? = null,
+    // When true, the rule matches on a percent-decoded copy of the text (%2F, %20, %C3%B8 count as the
+    // characters they stand for) and replaces the matching span of the original.
+    val encodingAware: Boolean = false
 )
 
 internal object RuleSetFactory {
@@ -104,7 +112,9 @@ internal object RuleSetFactory {
             meterRegistry, alwaysEnforced = true
         ),
         rule("filepath_low_confidence", "PROXY-FILEPATH", FilterPatterns.FILEPATH_LOW_CONFIDENCE_REGEX, meterRegistry),
-        rule("fnr", "PROXY-FNR", FilterPatterns.FNR_REGEX, meterRegistry),
+        // Context first: after e.g. "fnr:" the number is masked even if it fails validation.
+        rule("fnr_context", "PROXY-FNR", FilterPatterns.FNR_CONTEXT_REGEX, meterRegistry, maskGroup = "num", encodingAware = true),
+        rule("fnr", "PROXY-FNR", FilterPatterns.FNR_REGEX, meterRegistry, validator = Fnr::isValid, encodingAware = true),
         rule("navident", "PROXY-NAVIDENT", FilterPatterns.NAVIDENT_REGEX, meterRegistry),
         rule("email", "PROXY-EMAIL", FilterPatterns.EMAIL_REGEX, meterRegistry),
         rule("ip", "PROXY-IP", FilterPatterns.IP_REGEX, meterRegistry),
@@ -132,7 +142,10 @@ internal object RuleSetFactory {
         regex: Regex,
         meterRegistry: MeterRegistry,
         sanctioned: Boolean = false,
-        alwaysEnforced: Boolean = false
+        alwaysEnforced: Boolean = false,
+        validator: ((String) -> Boolean)? = null,
+        maskGroup: String? = null,
+        encodingAware: Boolean = false
     ): RedactionRule = RedactionRule(
         name = name,
         label = label,
@@ -140,7 +153,10 @@ internal object RuleSetFactory {
         counter = counter(meterRegistry, name),
         preserve = false,
         sanctioned = sanctioned,
-        alwaysEnforced = alwaysEnforced
+        alwaysEnforced = alwaysEnforced,
+        validator = validator,
+        maskGroup = maskGroup,
+        encodingAware = encodingAware
     )
 
     private fun counter(meterRegistry: MeterRegistry, ruleName: String): Counter =

@@ -17,12 +17,12 @@ class FilterServiceFnrHexStringTest {
 
     @Test
     fun `standalone 11-digit FNR should be redacted`() {
-        assertEquals("[PROXY-FNR]", redact("23031510135"))
+        assertEquals("[PROXY-FNR]", redact("15819010029"))
     }
 
     @Test
     fun `FNR in text should be redacted`() {
-        assertEquals("User SSN is [PROXY-FNR] here", redact("User SSN is 23031510135 here"))
+        assertEquals("User SSN is [PROXY-FNR] here", redact("User SSN is 15819010029 here"))
     }
 
     @Test
@@ -57,7 +57,7 @@ class FilterServiceFnrHexStringTest {
 
     @Test
     fun `FNR with punctuation around it should still be redacted`() {
-        assertEquals("fnr:[PROXY-FNR],", redact("fnr:23031510135,"))
+        assertEquals("fnr:[PROXY-FNR],", redact("fnr:15819010029,"))
     }
 
     @Test
@@ -87,7 +87,7 @@ class FilterServiceFnrHexStringTest {
                 data = TestEventFactory.jsonNode(
                     mapOf(
                         "commit" to "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
-                        "user_ssn" to "23031510135",
+                        "user_ssn" to "15819010029",
                         "hash_value" to "1234567890abcdef1234567890abcdef12345678"
                     )
                 )

@@ -16,23 +16,25 @@ internal class Traverser(
     private fun transformNode(node: JsonNode, ctx: NodeContext): JsonNode = when {
         node.isNull -> node
         node.isString -> JsonNodeFactory.instance.stringNode(transformString(node.asString(), ctx))
-        node.isNumber -> redactIfFnrNumber(node)
+        node.isNumber -> redactIfFnrNumber(node, ctx)
         node.isBoolean -> node
         node.isObject -> transformObject(node as ObjectNode, ctx)
         node.isArray -> transformArray(node as ArrayNode, ctx)
         else -> node
     }
 
-    private fun redactIfFnrNumber(node: JsonNode): JsonNode {
-        val longVal = node.asLong()
-        return if (longVal in 10_000_000_000..99_999_999_999) {
-            JsonNodeFactory.instance.stringNode("[PROXY-FNR]")
-        } else {
-            node
-        }
+    // Only integers that are exactly 11 digits are checked. Numbers are never padded with a leading zero,
+    // since that would turn ordinary 10-digit values (e.g. unix timestamps) into fnr candidates.
+    // Under a key that names an fnr (fnr, userFnr, fødselsnummer) every integer is masked, valid or not.
+    private fun redactIfFnrNumber(node: JsonNode, ctx: NodeContext): JsonNode {
+        if (!node.isIntegralNumber) return node
+        val digits = node.asLong().toString()
+        val masked = redactor.isFnrKey(ctx.valueKey) || (digits.length == 11 && Fnr.isValid(digits))
+        return if (masked) JsonNodeFactory.instance.stringNode("[PROXY-FNR]") else node
     }
 
-    private fun transformString(raw: String, ctx: NodeContext): String {
+    private fun transformString(input: String, ctx: NodeContext): String {
+        val raw = redactor.redactFnrKeyedValue(ctx.valueKey, input)
         return when {
             urlPolicy.isUrlField(ctx) -> urlPolicy.redactUrl(raw, redactor, excludePathLabels = true)
 
@@ -76,7 +78,7 @@ internal class Traverser(
         return if (value.isObject) {
             NodeContext(depth = nextDepth, containerKey = key, key = null)
         } else {
-            NodeContext(depth = nextDepth, containerKey = parent.containerKey, key = key)
+            NodeContext(depth = nextDepth, containerKey = parent.containerKey, key = key, valueKey = key)
         }
     }
 
@@ -84,7 +86,7 @@ internal class Traverser(
         val out = JsonNodeFactory.instance.arrayNode()
         for (child in arr) {
             // Same behavior: increment depth and reset containerKey/key
-            out.add(transformNode(child, ctx.copy(depth = ctx.depth + 1, containerKey = null, key = null)))
+            out.add(transformNode(child, ctx.copy(depth = ctx.depth + 1, containerKey = null, key = null, valueKey = ctx.valueKey)))
         }
         return out
     }

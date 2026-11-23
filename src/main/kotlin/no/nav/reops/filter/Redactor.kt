@@ -23,21 +23,13 @@ internal class Redactor(
         // 1) Optionally preserve URL-like substrings in free-text
         val preservedUrls = PlaceholderStore(prefix = "__PRESERVED_URL_", suffix = "__")
         if (preserveUrls) {
-            result = preservedUrls.preserveAll(result, FilterPatterns.URL_REGEX) { url ->
-                FilterPatterns.FNR_REGEX.replace(url) { "[PROXY-FNR]" }
-            }
+            result = preservedUrls.preserveAll(result, FilterPatterns.URL_REGEX) { url -> Fnr.redact(url) }
         }
 
         // 2) Apply rules (same order, same checks)
         for (rule in rules) {
             if (rule.label in allExcluded && !rule.alwaysEnforced) continue
-            if (!rule.regex.containsMatchIn(result)) continue
-
-            rule.counter.increment()
-
-            if (!rule.preserve) {
-                result = rule.regex.replace(result) { "[${rule.label}]" }
-            }
+            result = applyRule(rule, result)
         }
 
         // 3) Restore URLs
@@ -49,6 +41,86 @@ internal class Redactor(
         }
 
         return result
+    }
+
+    /**
+     * A JSON key that names an fnr (fnr, userFnr, fødselsnummer) is context for its value, just like
+     * a context word in text: the value is masked even if it fails validation.
+     */
+    fun redactFnrKeyedValue(key: String?, value: String): String {
+        if (!isFnrKey(key)) return value
+        val rule = rules.firstOrNull { it.name == "fnr_context" } ?: return value
+        if (rule.label in globalExcludedLabels) return value
+        // UUIDs are left to the UUID rule: masking their leading digits would break it (or its opt-out)
+        val uuids = FilterPatterns.UUID_REGEX.findAll(value).map { it.value }.toList()
+        var protectedValue = value
+        uuids.forEachIndexed { i, u -> protectedValue = protectedValue.replace(u, "__U${i}__") }
+        var out = applyRule(rule, "$KEY_PREFIX$protectedValue").removePrefix(KEY_PREFIX)
+        uuids.forEachIndexed { i, u -> out = out.replace("__U${i}__", u) }
+        return out
+    }
+
+    fun isFnrKey(key: String?): Boolean =
+        key != null && FilterPatterns.FNR_KEY_REGEX.containsMatchIn(CAMEL_BOUNDARY.replace(key, " "))
+
+    private fun applyRule(rule: RedactionRule, input: String): String {
+        if (rule.encodingAware) return applyOnDecodedView(rule, input)
+        if (!rule.regex.containsMatchIn(input)) return input
+
+        var result = input
+        val validator = rule.validator
+        if (validator == null) {
+            rule.counter.increment()
+            if (!rule.preserve) {
+                val group = rule.maskGroup
+                result = if (group == null) {
+                    rule.regex.replace(result) { "[${rule.label}]" }
+                } else {
+                    rule.regex.replace(result) { m -> m.replaceGroup(group, "[${rule.label}]") }
+                }
+            }
+        } else if (!rule.preserve) {
+            var matched = false
+            val replaced = rule.regex.replace(result) { m ->
+                if (validator(m.value)) {
+                    matched = true
+                    "[${rule.label}]"
+                } else {
+                    m.value
+                }
+            }
+            if (matched) {
+                rule.counter.increment()
+                result = replaced
+            }
+        }
+        return result
+    }
+
+    // Matches on the percent-decoded text and replaces the matching span of the original, so the
+    // encoding around the number is kept.
+    private fun applyOnDecodedView(rule: RedactionRule, input: String): String {
+        val view = DecodedView.of(input)
+        val validator = rule.validator
+        val out = StringBuilder()
+        var last = 0
+        var count = 0
+        for (m in rule.regex.findAll(view.text)) {
+            if (validator != null && !validator(m.value)) continue
+            val range = if (rule.maskGroup == null) m.range else m.groups[rule.maskGroup]?.range ?: continue
+            val original = view.original(range)
+            out.append(input, last, original.first).append("[${rule.label}]")
+            last = original.last + 1
+            count++
+        }
+        if (count == 0) return input
+        rule.counter.increment()
+        return if (rule.preserve) input else out.append(input, last, input.length).toString()
+    }
+
+    private companion object {
+        const val KEY_PREFIX = "fnr: "
+        val CAMEL_BOUNDARY = Regex("(?<=\\p{Ll})(?=\\p{Lu})")
     }
 
     private class PlaceholderStore(
@@ -84,4 +156,11 @@ internal class Redactor(
 
         private fun placeholder(i: Int): String = "$prefix${i}$suffix"
     }
+}
+
+internal fun MatchResult.replaceGroup(name: String, replacement: String): String {
+    val g = groups[name] ?: return replacement
+    val from = g.range.first - range.first
+    val to = g.range.last + 1 - range.first
+    return value.substring(0, from) + replacement + value.substring(to)
 }

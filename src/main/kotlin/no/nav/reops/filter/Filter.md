@@ -38,7 +38,7 @@ Responsibilities are isolated:
 2. Payload header fields are copied, with redaction applied to every field:
    - `payload.hostname`, `payload.screen`, `payload.language`,
      `payload.title`, `payload.url`, `payload.referrer`, `payload.name`
-   - `payload.id` has FNR-only redaction (no other rules)
+   - `payload.id` has FNR-only redaction (context word or valid FNR, no other rules)
 3. `UrlPolicy` sanitizes URL-like values (path vs query handling)
 4. `Traverser` walks `payload.data` recursively:
    - Applies `KeyPolicy` for structural decisions
@@ -133,7 +133,8 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
 | UUID                | `PROXY-UUID`           | UUIDs (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | `[PROXY-UUID]`           |
 | File path (high-confidence: drive-letter, UNC, `file://`) | `PROXY-FILEPATH` | Filesystem paths that can never be a valid URL path/query | `[PROXY-FILEPATH]` |
 | File path (low-confidence: generic multi-segment paths)   | `PROXY-FILEPATH` | Filesystem paths, ambiguous with real URL routes (excluded from URL path-part, see above) | `[PROXY-FILEPATH]` |
-| National ID (FNR)   | `PROXY-FNR`            | 11-digit Norwegian IDs                         | `[PROXY-FNR]`            |
+| National ID (FNR) after context word | `PROXY-FNR`  | Digits after `fnr`, `f.nr`, `fødselsnr`, `fødselsnummer`, `d-nr`, `d-nummer`, `personnr`, `personnummer`, `ssn`, with any padding (spaces, NBSP, quotes) or up to three separators in between. Masks from the first digit to the last digit before the next letter, line break, `&`, `#`, `?` or quote, whatever the digit count, separators or check digits. Metric tag `fnr_context` | `[PROXY-FNR]` |
+| National ID (FNR)   | `PROXY-FNR`            | Valid fødselsnummer, d-nummer (day + 40) and synthetic Dolly (month + 40) / Tenor (month + 80) identities. See [FNR validation](#fnr-validation) | `[PROXY-FNR]`            |
 | NAV ident           | `PROXY-NAVIDENT`       | `X123456` format                               | `[PROXY-NAVIDENT]`       |
 | Email               | `PROXY-EMAIL`          | Email addresses                                | `[PROXY-EMAIL]`          |
 | IP address          | `PROXY-IP`             | IPv4 strings                                   | `[PROXY-IP]`             |
@@ -145,6 +146,35 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
 | Organization number | `PROXY-ORG-NUMBER`     | 9 digits                                       | `[PROXY-ORG-NUMBER]`     |
 | License plate       | `PROXY-LICENSE-PLATE`  | `AB12345` format                               | `[PROXY-LICENSE-PLATE]`  |
 | Search query        | `PROXY-SEARCH`         | `?q=`, `?search=` etc                          | `[PROXY-SEARCH]`         |
+
+### FNR validation
+
+`Fnr.isValid` decides whether an 11-digit candidate is masked by the `fnr` rule:
+
+- Formats: 11 digits, or digits in groups of `ddmmyy` + `xxxxx` or `dd` `mm` `yy` + `xxxxx`, with up to three
+  spaces, non-breaking spaces, dots or dashes between the groups (`158190  10029`, `15 81 90 10029`, `15-81-90-10029`).
+- No letter or digit may be directly before or after the number, so digit runs inside hex strings,
+  longer IDs and words are not treated as fnr.
+- The date must exist (29 February only when the two-digit year is divisible by 4; year `00` counts as the leap year 2000, as in Skatteetaten's validator) and both mod-11 check digits must match.
+- Invalid candidates are left unchanged for later rules (e.g. `account`), and are not counted in the
+  `fnr` metric.
+- JSON numbers in `payload.data`: only integers with exactly 11 digits are validated. Numbers are never padded
+  with a leading `0`, so 10-digit values such as unix timestamps are left alone.
+- `payload.id` and URLs in free text use the same logic (context word or valid fnr).
+  The fnr rules match on a percent-decoded copy of the text, in free text, free-text URLs and URL fields alike:
+  `%2F`, `%20`, `%3A` and UTF-8 sequences such as `f%C3%B8dselsnummer` count as the characters they stand for.
+  Only the number is replaced, so the encoding around it is left as it was.
+- A JSON key that ends in a context word (`fnr`, `userFnr`, `fødselsnummer`) is context for its value: every
+  integer and every string starting with digits is masked, also in arrays under the key.
+  Other keys, such as `fnrCount`, are not context.
+  A space ends a URL in free text, so a number with a space inside (`nav.no/x/158190 10029`) is split and only
+  the part before the space is seen as part of the URL.
+- Sources: Skatteetaten's [validator](https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/dokumenter/foedselsEllerDNummerValidator.js)
+  (check digit weights, d-nummer, synthetic month + 80) and [synthetic numbers](https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/test-for-konsumenter/).
+  Dolly (month + 40) is not confirmed against a published source and is kept on purpose.
+- Only today's check-digit rule is supported. Numbers issued from 1 January 2032 accept more values for
+  the first check digit and must be added before then
+  ([Skatteetaten](https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/nytt-fodselsnummer-fra-2032/)).
 
 ---
 

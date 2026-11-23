@@ -55,10 +55,10 @@ internal object TestEventFactory {
             type = "visit", payload = Event.Payload(
                 website = UUID.randomUUID(),
                 hostname = "localhost",
-                screen = "12345678910",
+                screen = "15819010029",
                 language = "nb",
                 title = "john.doe@kake.no",
-                url = "https://kake.no/12345678910",
+                url = "https://kake.no/15819010029",
                 referrer = "https://kake.no/",
                 data = json(mapOf("hest" to "er best", "antall" to 42, "liker-hest" to true))
             )

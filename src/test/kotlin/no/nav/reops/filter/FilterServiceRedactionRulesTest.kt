@@ -17,7 +17,7 @@ class FilterServiceRedactionRulesTest {
     fun `filterEvent redacts non preserved patterns in data`() {
         val service = filterService()
 
-        val event = TestEventFactory.eventWithData("fnr=12345678910")
+        val event = TestEventFactory.eventWithData("fnr=15819010029")
         val out = service.filterEvent(event)
 
         val outText = out.payload.data.toString()
@@ -68,7 +68,7 @@ class FilterServiceRedactionRulesTest {
     fun `filterEvent redacts fnr in string value`() {
         val service = filterService()
 
-        val out = service.filterEvent(TestEventFactory.eventWithData("23031510135"))
+        val out = service.filterEvent(TestEventFactory.eventWithData("15819010029"))
         assertEquals("[PROXY-FNR]", out.payload.data!!.get("text").asString())
     }
 
@@ -76,13 +76,13 @@ class FilterServiceRedactionRulesTest {
     fun `filterEvent redacts fnr variants inside text`() {
         val service = filterService()
 
-        val out1 = service.filterEvent(TestEventFactory.eventWithData("my_fnr_23031510135"))
+        val out1 = service.filterEvent(TestEventFactory.eventWithData("my_fnr_15819010029"))
         assertEquals("my_fnr_[PROXY-FNR]", out1.payload.data!!.get("text").asString())
 
-        val out2 = service.filterEvent(TestEventFactory.eventWithData("my-fnr:23031510135 it's nice"))
+        val out2 = service.filterEvent(TestEventFactory.eventWithData("my-fnr:15819010029 it's nice"))
         assertEquals("my-fnr:[PROXY-FNR] it's nice", out2.payload.data!!.get("text").asString())
 
-        val out3 = service.filterEvent(TestEventFactory.eventWithData("my-fnr-23031510135"))
+        val out3 = service.filterEvent(TestEventFactory.eventWithData("my-fnr-15819010029"))
         assertEquals("my-fnr-[PROXY-FNR]", out3.payload.data!!.get("text").asString())
     }
 
@@ -112,7 +112,7 @@ class FilterServiceRedactionRulesTest {
                     mapOf(
                         "user_email" to "user@example.com",
                         "user_id" to "550e8400-e29b-41d4-a716-446655440000",
-                        "ssn" to "12345678910",
+                        "ssn" to "15819010029",
                         "phone" to "98765432",
                         "ip_address" to "192.168.1.1",
                         "event_properties" to mapOf(
@@ -163,19 +163,19 @@ class FilterServiceRedactionRulesTest {
         val event = base.copy(
             type = "event", payload = base.payload.copy(
                 website = website,
-                hostname = "https://kake.no/12345678910",
-                screen = "https://kake.no/12345678910",
-                language = "https://kake.no/12345678910",
-                title = "https://kake.no/12345678910",
-                url = "https://kake.no/12345678910",
-                referrer = "https://kake.no/12345678910",
+                hostname = "https://kake.no/15819010029",
+                screen = "https://kake.no/15819010029",
+                language = "https://kake.no/15819010029",
+                title = "https://kake.no/15819010029",
+                url = "https://kake.no/15819010029",
+                referrer = "https://kake.no/15819010029",
                 data = TestEventFactory.jsonNode(
                     mapOf(
                         "api_key" to "abc123",
                         "device_id" to "device-123",
                         "user_email" to "john.doe@example.com",
                         "user_id" to "550e8400-e29b-41d4-a716-446655440000",
-                        "user_ssn" to "12345678910",
+                        "user_ssn" to "15819010029",
                         "phone" to "98765432",
                         "navident" to "X123456",
                         "ip_address" to "192.168.1.100",
@@ -461,7 +461,7 @@ class FilterServiceRedactionRulesTest {
     fun `filterEvent still redacts non-uuid patterns when opt-out uuid is active`() {
         val service = filterService()
 
-        val event = TestEventFactory.eventWithData("fnr=12345678910 email=john@example.com")
+        val event = TestEventFactory.eventWithData("fnr=15819010029 email=john@example.com")
         val out = service.filterEvent(event, listOf(OptOutFilter.UUID))
         val outText = out.payload.data!!.get("text").asString()
 

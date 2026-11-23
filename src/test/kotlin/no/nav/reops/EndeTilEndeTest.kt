@@ -78,10 +78,10 @@ class EndeTilEndeTest {
             type = "visit", payload = Event.Payload(
                 website = UUID.randomUUID(),
                 hostname = "localhost",
-                screen = "12345678910",
+                screen = "15819010029",
                 language = "nb",
                 title = "john.doe@kake.no",
-                url = "https://kake.no/12345678910",
+                url = "https://kake.no/15819010029",
                 referrer = "https://kake.no/"
             )
         )
@@ -97,7 +97,7 @@ class EndeTilEndeTest {
             assertThat(records.count()).isGreaterThanOrEqualTo(1)
             val record = records.last()
             val body = record.value()
-            assertThat(body).doesNotContain("12345678910")
+            assertThat(body).doesNotContain("15819010029")
             assertThat(body).doesNotContain("john.doe@kake.no")
             assertThat(body).contains("[PROXY-EMAIL]")
             assertThat(body).contains("https://kake.no/[PROXY-FNR]")
@@ -114,10 +114,10 @@ class EndeTilEndeTest {
             type = "visit", payload = Event.Payload(
                 website = UUID.randomUUID(),
                 hostname = "localhost",
-                screen = "12345678910",
+                screen = "15819010029",
                 language = "nb",
                 title = "john.doe@kake.no",
-                url = "https://kake.no/12345678910",
+                url = "https://kake.no/15819010029",
                 referrer = "https://kake.no/",
                 data = data
             )
@@ -134,7 +134,7 @@ class EndeTilEndeTest {
             assertThat(records.count()).isGreaterThanOrEqualTo(1)
             val record = records.last()
             val body = record.value()
-            assertThat(body).doesNotContain("12345678910")
+            assertThat(body).doesNotContain("15819010029")
             assertThat(body).doesNotContain("john.doe@kake.no")
             assertThat(body).contains("[PROXY-EMAIL]")
             assertThat(body).contains("https://kake.no/[PROXY-FNR]")
