@@ -154,7 +154,7 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
 - Formats: `ddmmyyxxxxx`, `ddmmyy xxxxx`, `ddmmyy-xxxxx`, `ddmmyy.xxxxx`, `dd.mm.yy xxxxx`, `dd.mm.yy.xxxxx`.
 - No letter or digit may be directly before or after the number, so digit runs inside hex strings,
   longer IDs and words are not treated as fnr.
-- The date must exist (29 February only in leap years; for year `00` the individual number decides the century, 000-499 = 1900, 500-999 = 2000) and both mod-11 check digits must match.
+- The date must exist (29 February only when the two-digit year is divisible by 4; year `00` counts as the leap year 2000, as in Skatteetaten's validator) and both mod-11 check digits must match.
 - Invalid candidates are left unchanged for later rules (e.g. `account`), and are not counted in the
   `fnr` metric.
 - JSON numbers in `payload.data`: only integers with exactly 11 digits are validated. Numbers are never padded
@@ -164,6 +164,9 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
   and the encoding around the number is left as it was.
   A space ends a URL in free text, so a number with a space inside (`nav.no/x/158190 10029`) is split and only
   the part before the space is seen as part of the URL.
+- Sources: Skatteetaten's [validator](https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/dokumenter/foedselsEllerDNummerValidator.js)
+  (check digit weights, d-nummer, synthetic month + 80) and [synthetic numbers](https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/test-for-konsumenter/).
+  Dolly (month + 40) is not confirmed against a published source and is kept on purpose.
 - Only today's check-digit rule is supported. Numbers issued from 1 January 2032 accept more values for
   the first check digit and must be added before then
   ([Skatteetaten](https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/nytt-fodselsnummer-fra-2032/)).

@@ -8,6 +8,14 @@ package no.nav.reops.filter
  * - d-nummer: day + 40
  * - synthetic Dolly identities: month + 40 (also covers H-nummer, which uses the same encoding)
  * - synthetic Tenor identities (Skatteetaten test data): month + 80
+ *
+ * Sources:
+ * - Check digit weights, d-nummer and synthetic (month + 80) numbers: Skatteetaten's validator,
+ *   https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/dokumenter/foedselsEllerDNummerValidator.js
+ * - Check digit calculation: https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/nytt-fodselsnummer-fra-2032/
+ * - Tenor (+80): https://skatteetaten.github.io/folkeregisteret-api-dokumentasjon/test-for-konsumenter/
+ * - Dolly (month + 40) and H-nummer: not confirmed against a published source; Skatteetaten's validator
+ *   only accepts +80 for synthetic numbers. Kept on purpose so that these numbers are masked too.
  */
 internal object Fnr {
     private const val LABEL = "[PROXY-FNR]"
@@ -62,17 +70,14 @@ internal object Fnr {
     private fun hasValidDate(d: IntArray): Boolean {
         var day = d[0] * 10 + d[1]
         var month = d[2] * 10 + d[3]
+        // Year 00 counts as the leap year 2000, as in Skatteetaten's validator: from 2032 the century
+        // can no longer be read from the individual number, so a missed identity is worse than a false match.
         val year = d[4] * 10 + d[5]
         if (day > 40) day -= 40
         if (month > 80) month -= 80 else if (month > 40) month -= 40
-        if (month == 2 && day == 29) return isLeapYear(year, individualNumber = d[6] * 100 + d[7] * 10 + d[8])
+        if (month == 2 && day == 29) return year % 4 == 0
         return month in 1..12 && day in 1..DAYS_IN_MONTH[month - 1]
     }
-
-    // The century follows from the individual number: for year 00, 000-499 is 1900 (not a leap year)
-    // and 500-999 is 2000 (a leap year). Other years are leap years when divisible by 4.
-    private fun isLeapYear(year: Int, individualNumber: Int): Boolean =
-        if (year == 0) individualNumber >= 500 else year % 4 == 0
 
     // Returns -1 when the remainder gives check digit 10, which is never issued.
     // TODO before 2032: numbers issued from 1.1.2032 accept remainder 0-3 for K1

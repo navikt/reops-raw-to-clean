@@ -47,9 +47,8 @@ class FnrNoFalseNegativesTest {
             val day = 1 + rnd.nextInt(daysInMonth[month - 1])
             val year = rnd.nextInt(100)
             val individual = rnd.nextInt(1000)
-            // Year 00 is 1900 for individual numbers 000-499 and 2000 for 500-999
-            val leap = if (year == 0) individual >= 500 else year % 4 == 0
-            if (month == 2 && day == 29 && !leap) continue
+            // Year 00 counts as the leap year 2000, as in Skatteetaten's validator
+            if (month == 2 && day == 29 && year % 4 != 0) continue
             // Real birth number, d-nummer (day + 40), Dolly (month + 40) and Tenor (month + 80)
             val dd = if (rnd.nextInt(4) == 0) day + 40 else day
             val mm = when (rnd.nextInt(4)) {
