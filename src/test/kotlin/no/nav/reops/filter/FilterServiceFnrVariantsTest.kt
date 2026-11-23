@@ -281,6 +281,28 @@ class FilterServiceFnrVariantsTest {
     }
 
     @Test
+    fun `fnr after an encoded separator in a free-text url is masked without changing the encoding`() {
+        assertEquals(
+            "Se https://nav.no/person%2F[PROXY-FNR]/details",
+            redact("Se https://nav.no/person%2F15819010029/details")
+        )
+        assertEquals(
+            "Se https://nav.no/person%2f[PROXY-FNR]%2Fdetails",
+            redact("Se https://nav.no/person%2f15819010029%2Fdetails")
+        )
+        assertEquals(
+            "Se nav.no/person%2D[PROXY-FNR]",
+            redact("Se nav.no/person%2D15819010029")
+        )
+    }
+
+    @Test
+    fun `encoded letter next to the number still blocks the fnr match in a url`() {
+        // %41 is "A": the number is glued to a letter, which is not an fnr boundary
+        assertFalse(redact("Se https://nav.no/x%4115819010029/y").contains("[PROXY-FNR]"))
+    }
+
+    @Test
     fun `invalid number in free-text url is not redacted as fnr`() {
         val out = redact("Se https://nav.no/sak/15819010028/info")
         assertFalse(out.contains("[PROXY-FNR]"), out)
