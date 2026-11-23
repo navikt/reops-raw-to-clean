@@ -151,7 +151,8 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
 
 `Fnr.isValid` decides whether an 11-digit candidate is masked by the `fnr` rule:
 
-- Formats: `ddmmyyxxxxx`, `ddmmyy xxxxx`, `ddmmyy-xxxxx`, `ddmmyy.xxxxx`, `dd.mm.yy xxxxx`, `dd.mm.yy.xxxxx`.
+- Formats: 11 digits, or digits in groups of `ddmmyy` + `xxxxx` or `dd` `mm` `yy` + `xxxxx`, with up to three
+  spaces, non-breaking spaces, dots or dashes between the groups (`158190  10029`, `15 81 90 10029`, `15-81-90-10029`).
 - No letter or digit may be directly before or after the number, so digit runs inside hex strings,
   longer IDs and words are not treated as fnr.
 - The date must exist (29 February only when the two-digit year is divisible by 4; year `00` counts as the leap year 2000, as in Skatteetaten's validator) and both mod-11 check digits must match.

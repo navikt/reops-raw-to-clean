@@ -35,7 +35,11 @@ class FnrNoFalseNegativesTest {
                 "${two(dd)}${two(mm)}${two(yy)}-$ind$k1$k2",
                 "${two(dd)}${two(mm)}${two(yy)}.$ind$k1$k2",
                 "${two(dd)}.${two(mm)}.${two(yy)} $ind$k1$k2",
-                "${two(dd)}.${two(mm)}.${two(yy)}.$ind$k1$k2"
+                "${two(dd)}.${two(mm)}.${two(yy)}.$ind$k1$k2",
+                "${two(dd)}${two(mm)}${two(yy)}  $ind$k1$k2",
+                "${two(dd)}${two(mm)}${two(yy)}\u00A0$ind$k1$k2",
+                "${two(dd)} ${two(mm)} ${two(yy)} $ind$k1$k2",
+                "${two(dd)}-${two(mm)}-${two(yy)}-$ind$k1$k2"
             )
     }
 
@@ -85,7 +89,7 @@ class FnrNoFalseNegativesTest {
             for (format in id.formats) {
                 for (context in contexts) {
                     // A space ends a URL, so a number with a space inside is split in free-text URLs (known limit)
-                    if ("nav.no/" in context && ' ' in format) continue
+                    if ("nav.no/" in context && format.any { it.isWhitespace() }) continue
                     val input = context.replace("{}", format)
                     val out = service.filterEvent(TestEventFactory.eventWithData(input)).payload.data!!.get("text").asString()
                     checked++

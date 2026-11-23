@@ -3,8 +3,11 @@ package no.nav.reops.filter
 internal object FilterPatterns {
     val KEEP_REGEX = Regex("((nav|test)[0-9]{6})")
 
-    // 11 digits: DDMMYYxxxxx, DDMMYY xxxxx / -xxxxx / .xxxxx, or DD.MM.YY xxxxx / .xxxxx
-    private const val FNR_DIGITS = "(?:\\d{2}\\.\\d{2}\\.\\d{2}[ .]\\d{5}|\\d{6}[ .-]?\\d{5})"
+    // 11 digits with up to three space, NBSP, dot or dash characters between the groups:
+    // DDMMYYxxxxx, DDMMYY xxxxx, DD.MM.YY xxxxx or DD MM YY xxxxx. Validated by Fnr.isValid afterwards.
+    private const val FNR_SEP = "[ \\u00A0.-]"
+    private const val FNR_DIGITS =
+        "(?:\\d{2}$FNR_SEP\\d{2}$FNR_SEP\\d{2}$FNR_SEP{1,3}\\d{5}|\\d{6}$FNR_SEP{0,3}\\d{5})"
     private const val FNR_CONTEXT_WORDS =
         "fnr|f\\.nr|fødselsnr|fødselsnummer|fødselsnummeret|fodselsnr|fodselsnummer|d-?nr|d-?nummer|d-?nummeret" +
             "|personnr|personnummer|personnummeret"

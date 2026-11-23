@@ -303,6 +303,30 @@ class FilterServiceFnrVariantsTest {
     }
 
     @Test
+    fun `redacts fnr with padded or looser separators`() {
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 158190  10029"))
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 158190\u00A010029"))
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 158190. 10029"))
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 158190 - 10029"))
+    }
+
+    @Test
+    fun `redacts fnr written as three groups plus person number`() {
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 15 81 90 10029"))
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 15-81-90-10029"))
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 15 81 90  10029"))
+        assertEquals("SSN: [PROXY-FNR]", redact("SSN: 15\u00A081\u00A090\u00A010029"))
+    }
+
+    @Test
+    fun `looser separators still need valid check digits and date`() {
+        assertEquals("ordre 158190  10028", redact("ordre 158190  10028"))
+        assertEquals("ordre 15 81 90 10028", redact("ordre 15 81 90 10028"))
+        assertEquals("dato 2026 10 14 kl 10029", redact("dato 2026 10 14 kl 10029"))
+        assertEquals("vekt 123 456  789 gram", redact("vekt 123 456  789 gram"))
+    }
+
+    @Test
     fun `invalid number in free-text url is not redacted as fnr`() {
         val out = redact("Se https://nav.no/sak/15819010028/info")
         assertFalse(out.contains("[PROXY-FNR]"), out)
