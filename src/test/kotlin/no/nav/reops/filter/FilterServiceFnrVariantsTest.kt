@@ -3,6 +3,7 @@ package no.nav.reops.filter
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class FilterServiceFnrVariantsTest {
@@ -254,15 +255,20 @@ class FilterServiceFnrVariantsTest {
     }
 
     @Test
-    fun `redacts 10-digit json number that lost its leading zero`() {
+    fun `keeps 10-digit json number that would be a valid fnr with a leading zero`() {
+        // 1811808004 is a unix timestamp; with a leading 0 it also passes the Tenor date and check digits.
+        // Numbers are never padded, so it must stay a JSON number.
         val service = filterService()
         val base = TestEventFactory.minimalEvent()
         val event = base.copy(
             type = "event", payload = base.payload.copy(
-                data = TestEventFactory.jsonNode(mapOf("kandidatnr" to 3859510034L))
+                data = TestEventFactory.jsonNode(mapOf("ts" to 1811808004L, "kandidatnr" to 3859510034L))
             )
         )
-        assertEquals("[PROXY-FNR]", service.filterEvent(event).payload.data!!.get("kandidatnr").asString())
+        val data = service.filterEvent(event).payload.data!!
+        assertTrue(data.get("ts").isNumber)
+        assertEquals(1811808004L, data.get("ts").asLong())
+        assertEquals(3859510034L, data.get("kandidatnr").asLong())
     }
 
     @Test

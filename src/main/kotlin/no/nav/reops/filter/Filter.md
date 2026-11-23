@@ -154,11 +154,11 @@ These rules apply to all string values unless explicitly excluded (e.g. URL path
 - Formats: `ddmmyyxxxxx`, `ddmmyy xxxxx`, `ddmmyy-xxxxx`, `ddmmyy.xxxxx`, `dd.mm.yy xxxxx`, `dd.mm.yy.xxxxx`.
 - No letter or digit may be directly before or after the number, so digit runs inside hex strings,
   longer IDs and words are not treated as fnr.
-- The date must exist (29 February only in years divisible by 4) and both mod-11 check digits must match.
+- The date must exist (29 February only in leap years; for year `00` the individual number decides the century, 000-499 = 1900, 500-999 = 2000) and both mod-11 check digits must match.
 - Invalid candidates are left unchanged for later rules (e.g. `account`), and are not counted in the
   `fnr` metric.
-- JSON numbers in `payload.data`: 11-digit numbers are validated as-is; 10-digit numbers are validated
-  with a leading `0` (JSON drops it for people born on day 1–9).
+- JSON numbers in `payload.data`: only integers with exactly 11 digits are validated. Numbers are never padded
+  with a leading `0`, so 10-digit values such as unix timestamps are left alone.
 - `payload.id` and URLs in free text use the same logic (context word or valid fnr).
 - Only today's check-digit rule is supported. Numbers issued from 1 January 2032 accept more values for
   the first check digit and must be added before then
