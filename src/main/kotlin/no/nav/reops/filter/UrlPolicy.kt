@@ -4,7 +4,9 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 internal data class NodeContext(
-    val depth: Int, val containerKey: String?, val key: String?
+    val depth: Int, val containerKey: String?, val key: String?,
+    // Key of the nearest enclosing property; kept for array elements, where key itself is reset
+    val valueKey: String? = null
 )
 
 internal class UrlPolicy(

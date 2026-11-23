@@ -93,7 +93,10 @@ internal data class RedactionRule(
     // for later rules and are not counted.
     val validator: ((String) -> Boolean)? = null,
     // When set, only this named group of a match is replaced; the rest of the match is kept.
-    val maskGroup: String? = null
+    val maskGroup: String? = null,
+    // When true, the rule matches on a percent-decoded copy of the text (%2F, %20, %C3%B8 count as the
+    // characters they stand for) and replaces the matching span of the original.
+    val encodingAware: Boolean = false
 )
 
 internal object RuleSetFactory {
@@ -110,8 +113,8 @@ internal object RuleSetFactory {
         ),
         rule("filepath_low_confidence", "PROXY-FILEPATH", FilterPatterns.FILEPATH_LOW_CONFIDENCE_REGEX, meterRegistry),
         // Context first: after e.g. "fnr:" the number is masked even if it fails validation.
-        rule("fnr_context", "PROXY-FNR", FilterPatterns.FNR_CONTEXT_REGEX, meterRegistry, maskGroup = "num"),
-        rule("fnr", "PROXY-FNR", FilterPatterns.FNR_REGEX, meterRegistry, validator = Fnr::isValid),
+        rule("fnr_context", "PROXY-FNR", FilterPatterns.FNR_CONTEXT_REGEX, meterRegistry, maskGroup = "num", encodingAware = true),
+        rule("fnr", "PROXY-FNR", FilterPatterns.FNR_REGEX, meterRegistry, validator = Fnr::isValid, encodingAware = true),
         rule("navident", "PROXY-NAVIDENT", FilterPatterns.NAVIDENT_REGEX, meterRegistry),
         rule("email", "PROXY-EMAIL", FilterPatterns.EMAIL_REGEX, meterRegistry),
         rule("ip", "PROXY-IP", FilterPatterns.IP_REGEX, meterRegistry),
@@ -141,7 +144,8 @@ internal object RuleSetFactory {
         sanctioned: Boolean = false,
         alwaysEnforced: Boolean = false,
         validator: ((String) -> Boolean)? = null,
-        maskGroup: String? = null
+        maskGroup: String? = null,
+        encodingAware: Boolean = false
     ): RedactionRule = RedactionRule(
         name = name,
         label = label,
@@ -151,7 +155,8 @@ internal object RuleSetFactory {
         sanctioned = sanctioned,
         alwaysEnforced = alwaysEnforced,
         validator = validator,
-        maskGroup = maskGroup
+        maskGroup = maskGroup,
+        encodingAware = encodingAware
     )
 
     private fun counter(meterRegistry: MeterRegistry, ruleName: String): Counter =

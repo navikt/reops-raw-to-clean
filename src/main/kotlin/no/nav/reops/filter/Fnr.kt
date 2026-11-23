@@ -36,36 +36,27 @@ internal object Fnr {
         return n == 11 && hasValidDate(d) && checkDigit(d, K1_WEIGHTS) == d[9] && checkDigit(d, K2_WEIGHTS) == d[10]
     }
 
-    private val PERCENT_ESCAPE = Regex("%([0-9A-Fa-f]{2})")
-
     /**
      * Masks fnr after a context word (also invalid ones) and valid fnr elsewhere.
-     * Boundaries are checked against a copy where escaped separators like %2F count as separators,
-     * and only the matched span is replaced, so the encoding around it is unchanged.
+     * Matching runs on a percent-decoded view, so "%2F", "%20" and "%C3%B8" count as the characters
+     * they stand for; only the matched span is replaced, so the encoding around it is unchanged.
      */
-    fun redact(text: String): String = redactSpans(redactSpans(text, FilterPatterns.FNR_CONTEXT_REGEX) { m ->
-        m.groups["num"]!!.range
-    }, FilterPatterns.FNR_REGEX) { m -> if (isValid(m.value)) m.range else null }
+    fun redact(text: String): String =
+        redactSpans(redactSpans(text, FilterPatterns.FNR_CONTEXT_REGEX) { m ->
+            m.groups["num"]!!.range
+        }, FilterPatterns.FNR_REGEX) { m -> if (isValid(m.value)) m.range else null }
 
     private fun redactSpans(text: String, regex: Regex, span: (MatchResult) -> IntRange?): String {
-        val boundaryView = withDecodedSeparators(text)
+        val view = DecodedView.of(text)
         val out = StringBuilder()
         var last = 0
-        for (m in regex.findAll(boundaryView)) {
-            val range = span(m) ?: continue
+        for (m in regex.findAll(view.text)) {
+            val range = view.original(span(m) ?: continue)
             out.append(text, last, range.first).append(LABEL)
             last = range.last + 1
         }
         return if (last == 0) text else out.append(text, last, text.length).toString()
     }
-
-    // Same length as the input. A %XX that decodes to an ASCII character other than a letter or digit
-    // becomes "///", so it no longer counts as a letter next to the number (%2F → "/").
-    private fun withDecodedSeparators(text: String): String =
-        if ('%' !in text) text else PERCENT_ESCAPE.replace(text) { m ->
-            val c = m.groupValues[1].toInt(16)
-            if (c < 0x80 && !c.toChar().isLetterOrDigit()) "///" else m.value
-        }
 
     private fun hasValidDate(d: IntArray): Boolean {
         var day = d[0] * 10 + d[1]

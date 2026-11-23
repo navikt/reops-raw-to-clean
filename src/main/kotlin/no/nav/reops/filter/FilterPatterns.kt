@@ -7,10 +7,10 @@ internal object FilterPatterns {
     // DDMMYYxxxxx, DDMMYY xxxxx, DD.MM.YY xxxxx or DD MM YY xxxxx. Validated by Fnr.isValid afterwards.
     private const val FNR_SEP = "[ \\u00A0.-]"
     private const val FNR_DIGITS =
-        "(?:\\d{2}$FNR_SEP\\d{2}$FNR_SEP\\d{2}$FNR_SEP{1,3}\\d{5}|\\d{6}$FNR_SEP{0,3}\\d{5})"
+        "(?:\\d{2}$FNR_SEP{1,3}\\d{2}$FNR_SEP{1,3}\\d{2}$FNR_SEP{1,3}\\d{5}|\\d{6}$FNR_SEP{0,3}\\d{5})"
     private const val FNR_CONTEXT_WORDS =
         "fnr|f\\.nr|fødselsnr|fødselsnummer|fødselsnummeret|fodselsnr|fodselsnummer|d-?nr|d-?nummer|d-?nummeret" +
-            "|personnr|personnummer|personnummeret"
+            "|personnr|personnummer|personnummeret|ssn"
 
     // No letters or digits directly around the number, so digit runs inside hex strings and IDs are left alone.
     // Matches are only masked if Fnr.isValid accepts them.
@@ -21,9 +21,11 @@ internal object FilterPatterns {
     // The match runs from the first digit to the last digit before the first letter or line break;
     // group "num" is the span that is replaced, so the word and its separators are kept.
     val FNR_CONTEXT_REGEX = Regex(
-        "(?<![\\p{L}\\d])(?iu:$FNR_CONTEXT_WORDS)(?:[ \\t]*[:=#._/|+@()\\[\\]{}-]){0,3}[ \\t]*" +
-            "(?<num>\\d(?:[^\\p{L}\\r\\n]*\\d)?)"
+        "(?<![\\p{L}\\d])(?iu:$FNR_CONTEXT_WORDS)(?:[ \\t\\u00A0]*[:=#._/|+@()\\[\\]{}\"'-]){0,3}[ \\t\\u00A0]*" +
+            "(?<num>\\d(?:[^\\p{L}\\r\\n&#?\"']*\\d)?)"
     )
+    // A JSON key that ends in a context word (fnr, userFnr, fødselsnummer) works as the context word for its value.
+    val FNR_KEY_REGEX = Regex("(?<![\\p{L}])(?iu:$FNR_CONTEXT_WORDS)[^\\p{L}]*$")
     val NAVIDENT_REGEX = Regex("(?<![a-zA-Z0-9])[a-zA-Z]\\d{6}(?!\\d)")
     val EMAIL_REGEX = Regex("(?:mailto:)?[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
     val IP_REGEX = Regex("(?<!\\d)\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?!\\d)")
@@ -90,9 +92,9 @@ internal object FilterPatterns {
     val URL_REGEX = Regex(
         pattern = """(?x)
             (?:
-                https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[\p{L}\p{M}A-Za-z0-9._\-/@%&=]*)?
+                https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[\p{L}\p{M}A-Za-z0-9._\-/@%&=:]*)?
                 |
-                (?<![A-Za-z0-9._%+\-@])[A-Za-z0-9._\-]+\.[A-Za-z]{2,}/[\p{L}\p{M}A-Za-z0-9._\-/@%&=]+
+                (?<![A-Za-z0-9._%+\-@])[A-Za-z0-9._\-]+\.[A-Za-z]{2,}/[\p{L}\p{M}A-Za-z0-9._\-/@%&=:]+
             )
         """.trimIndent(), options = setOf(RegexOption.COMMENTS)
     )
