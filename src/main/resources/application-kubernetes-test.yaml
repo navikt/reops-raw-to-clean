@@ -1,0 +1,8 @@
+spring:
+  kafka:
+    topic: team-researchops.analytics-test-raw
+    output-topic: team-researchops.analytics-test-clean
+    consumer:
+      group-id: reops-raw-to-clean-test
+    listener:
+      concurrency: 1
